@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  background: #0a0a0a;
+  color: #f5f5f5;
+}
+
+/* Print styles for the QR sticker page.
+   When printing, hide everything except the .sticker container. */
+@media print {
+  body * { visibility: hidden; }
+  .sticker, .sticker * { visibility: visible; }
+  .sticker {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .no-print { display: none !important; }
+}
