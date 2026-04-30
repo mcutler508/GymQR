@@ -13,15 +13,12 @@ export function QrClient({ equipment, initialScanUrl }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [scanUrl, setScanUrl] = useState(initialScanUrl);
 
-  // If NEXT_PUBLIC_APP_URL wasn't set, fall back to the current origin so the
-  // QR still works for localhost/cloud preview testing.
   useEffect(() => {
     if (!initialScanUrl.startsWith('http')) {
       setScanUrl(`${window.location.origin}/scan/${equipment.qr_slug}`);
     }
   }, [equipment.qr_slug, initialScanUrl]);
 
-  // Render QR onto canvas at high contrast for print legibility.
   useEffect(() => {
     if (!canvasRef.current) return;
     QRCode.toCanvas(canvasRef.current, scanUrl, {
@@ -29,9 +26,7 @@ export function QrClient({ equipment, initialScanUrl }: Props) {
       margin: 2,
       color: { dark: '#000000', light: '#ffffff' },
       errorCorrectionLevel: 'M',
-    }).catch(() => {
-      // ignore; user can refresh
-    });
+    }).catch(() => {});
   }, [scanUrl]);
 
   function downloadPng() {
@@ -44,7 +39,7 @@ export function QrClient({ equipment, initialScanUrl }: Props) {
   }
 
   return (
-    <main className="p-6 max-w-2xl mx-auto">
+    <div>
       <div className="no-print mb-6">
         <h1 className="text-2xl font-semibold">Print QR Sticker</h1>
         <p className="text-sm text-neutral-400 mt-1 break-all">Scan URL: {scanUrl}</p>
@@ -63,6 +58,12 @@ export function QrClient({ equipment, initialScanUrl }: Props) {
           >
             Print
           </button>
+          <a
+            href="/owner/equipment"
+            className="px-4 py-2 rounded-lg border border-neutral-700 text-sm flex items-center"
+          >
+            Back to equipment
+          </a>
         </div>
       </div>
 
@@ -75,6 +76,6 @@ export function QrClient({ equipment, initialScanUrl }: Props) {
         <canvas ref={canvasRef} className="my-6" />
         <p className="text-sm text-neutral-700 italic">Your gym remembers your lifts.</p>
       </div>
-    </main>
+    </div>
   );
 }

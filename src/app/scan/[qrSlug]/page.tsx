@@ -1,13 +1,23 @@
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
-import { supabase, type Equipment, type Set } from '@/lib/supabase';
+import { supabase, type Set } from '@/lib/supabase';
 import { suggestTarget } from '@/lib/suggested-target';
 import { ScanClient } from './ScanClient';
 import { recordScan } from './actions';
 
-const COOKIE_NAME = 'reptag_user_id';
+const COOKIE_NAME = 'reptag_member_id';
 
 export const dynamic = 'force-dynamic';
+
+type EquipmentJoin = {
+  id: string;
+  qr_slug: string;
+  name: string;
+  machine_label: string | null;
+  gym_id: string;
+  status: 'active' | 'inactive';
+  gyms: { name: string } | null;
+};
 
 export default async function ScanPage({
   params,
@@ -18,9 +28,9 @@ export default async function ScanPage({
 
   const { data: equipment, error } = await supabase
     .from('equipment')
-    .select('id, qr_slug, name, machine_label, gym_name, status')
+    .select('id, qr_slug, name, machine_label, gym_id, status, gyms(name)')
     .eq('qr_slug', qrSlug)
-    .maybeSingle<Equipment>();
+    .maybeSingle<EquipmentJoin>();
 
   if (error) {
     return (
@@ -44,32 +54,59 @@ export default async function ScanPage({
     );
   }
 
-  // Fire-and-forget scan event (non-blocking for the user, but awaited so the
-  // request finishes before the response stream closes — Vercel will kill loose
-  // promises otherwise).
-  await recordScan(equipment.id);
+  await recordScan({ equipmentId: equipment.id, gymId: equipment.gym_id });
 
   const store = await cookies();
-  const userId = store.get(COOKIE_NAME)?.value ?? null;
+  const memberId = store.get(COOKIE_NAME)?.value ?? null;
 
   let recentSets: Set[] = [];
-  if (userId) {
-    const { data } = await supabase
-      .from('sets')
-      .select('id, user_id, equipment_id, weight, reps, rpe, note, logged_at')
-      .eq('user_id', userId)
-      .eq('equipment_id', equipment.id)
-      .order('logged_at', { ascending: false })
-      .limit(10);
-    recentSets = (data ?? []) as Set[];
+  let memberName: string | null = null;
+  let needsPasscode = false;
+
+  if (memberId) {
+    const [setsRes, memberRes] = await Promise.all([
+      supabase
+        .from('sets')
+        .select('id, member_id, equipment_id, gym_id, weight, reps, rpe, note, logged_at')
+        .eq('member_id', memberId)
+        .eq('equipment_id', equipment.id)
+        .order('logged_at', { ascending: false })
+        .limit(10),
+      supabase
+        .from('members')
+        .select('name, passcode_hash')
+        .eq('id', memberId)
+        .maybeSingle(),
+    ]);
+
+    recentSets = (setsRes.data ?? []) as Set[];
+    if (memberRes.data) {
+      memberName = memberRes.data.name;
+      needsPasscode = !memberRes.data.passcode_hash;
+    } else {
+      // Cookie points at a member that no longer exists (deleted upstream).
+      // Fall through to the unidentified path; ScanClient will prompt.
+      memberName = null;
+    }
   }
 
   const suggestion = suggestTarget(recentSets[0]);
+  const gymName = equipment.gyms?.name ?? 'Gym';
 
   return (
     <ScanClient
-      equipment={equipment}
-      identified={!!userId}
+      equipment={{
+        id: equipment.id,
+        qr_slug: equipment.qr_slug,
+        name: equipment.name,
+        machine_label: equipment.machine_label,
+        gym_id: equipment.gym_id,
+        status: equipment.status,
+      }}
+      gymName={gymName}
+      identified={!!memberId && !!memberName}
+      needsPasscode={needsPasscode}
+      memberName={memberName}
       recentSets={recentSets}
       suggestion={suggestion}
     />

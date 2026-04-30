@@ -2,92 +2,270 @@
 
 import { useState, useTransition, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import type { Equipment, Set } from '@/lib/supabase';
 import { describeSuggestion, type Suggestion } from '@/lib/suggested-target';
-import { ensureUser, logSet } from './actions';
+import {
+  createMemberAction,
+  signInMemberAction,
+  setPasscodeAction,
+  logSet,
+  signOutMember,
+} from './actions';
 
 type Props = {
   equipment: Equipment;
+  gymName: string;
   identified: boolean;
+  needsPasscode: boolean;
+  memberName: string | null;
   recentSets: Set[];
   suggestion: Suggestion;
 };
 
-export function ScanClient({ equipment, identified, recentSets, suggestion }: Props) {
-  if (!identified) {
-    return <NamePrompt equipment={equipment} />;
+export function ScanClient(props: Props) {
+  if (!props.identified) {
+    return <IdentityPrompt equipment={props.equipment} gymName={props.gymName} />;
   }
-  return <LogView equipment={equipment} recentSets={recentSets} suggestion={suggestion} />;
+  if (props.needsPasscode) {
+    return <SetPasscodePrompt equipment={props.equipment} gymName={props.gymName} memberName={props.memberName} />;
+  }
+  return (
+    <LogView
+      equipment={props.equipment}
+      gymName={props.gymName}
+      memberName={props.memberName}
+      recentSets={props.recentSets}
+      suggestion={props.suggestion}
+    />
+  );
 }
 
-function NamePrompt({ equipment }: { equipment: Equipment }) {
+/* ------------------------------------------------------------------ */
+/* Identity: create OR sign in (toggle)                                */
+/* ------------------------------------------------------------------ */
+
+function IdentityPrompt({
+  equipment,
+  gymName,
+}: {
+  equipment: Equipment;
+  gymName: string;
+}) {
+  const [mode, setMode] = useState<'create' | 'signin'>('create');
+  return (
+    <main className="p-6 max-w-md mx-auto">
+      <Header equipment={equipment} gymName={gymName} />
+      <div className="mt-6 inline-flex p-1 rounded-lg bg-neutral-900 border border-neutral-800 text-sm">
+        <button
+          type="button"
+          onClick={() => setMode('create')}
+          className={`px-3 py-1.5 rounded-md ${mode === 'create' ? 'bg-white text-black' : 'text-neutral-400'}`}
+        >
+          First time
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('signin')}
+          className={`px-3 py-1.5 rounded-md ${mode === 'signin' ? 'bg-white text-black' : 'text-neutral-400'}`}
+        >
+          Returning
+        </button>
+      </div>
+      {mode === 'create' ? (
+        <CreateForm equipment={equipment} />
+      ) : (
+        <SignInForm equipment={equipment} />
+      )}
+    </main>
+  );
+}
+
+function CreateForm({ equipment }: { equipment: Equipment }) {
   const router = useRouter();
   const [name, setName] = useState('');
+  const [passcode, setPasscode] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErr(null);
+    if (!/^\d{4}$/.test(passcode)) return setErr('Passcode must be exactly 4 digits.');
+    if (passcode !== confirm) return setErr('Passcodes don’t match.');
     startTransition(async () => {
       try {
-        const u = await ensureUser(name);
+        const m = await createMemberAction({
+          gymId: equipment.gym_id,
+          name,
+          passcode,
+        });
         try {
-          localStorage.setItem('reptag_user_id', u.id);
-          localStorage.setItem('reptag_user_name', u.name);
+          localStorage.setItem('reptag_member_id', m.id);
+          localStorage.setItem('reptag_member_name', m.name);
         } catch {
-          // localStorage can fail in private mode; cookie is the source of truth.
+          // private mode etc — cookie is the source of truth
         }
         router.refresh();
       } catch (e) {
-        setErr(e instanceof Error ? e.message : 'Could not save name');
+        setErr(e instanceof Error ? e.message : 'Could not create account.');
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="mt-6 space-y-4">
+      <Field
+        label="Your name"
+        value={name}
+        onChange={setName}
+        placeholder="e.g. Mike"
+        autoFocus
+      />
+      <PasscodeField label="Choose a 4-digit passcode" value={passcode} onChange={setPasscode} />
+      <PasscodeField label="Confirm passcode" value={confirm} onChange={setConfirm} />
+      <button
+        type="submit"
+        disabled={pending || !name.trim() || !passcode || !confirm}
+        className="w-full px-4 py-4 text-lg font-semibold rounded-lg bg-white text-black disabled:opacity-50"
+      >
+        {pending ? 'Creating…' : 'Continue'}
+      </button>
+      {err && <p className="text-sm text-red-400">{err}</p>}
+      <p className="text-xs text-neutral-500">
+        Your name + 4-digit passcode let you pull up your history on any phone.
+      </p>
+    </form>
+  );
+}
+
+function SignInForm({ equipment }: { equipment: Equipment }) {
+  const router = useRouter();
+  const [name, setName] = useState('');
+  const [passcode, setPasscode] = useState('');
+  const [pending, startTransition] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setErr(null);
+    if (!/^\d{4}$/.test(passcode)) return setErr('Passcode must be exactly 4 digits.');
+    startTransition(async () => {
+      try {
+        const m = await signInMemberAction({
+          gymId: equipment.gym_id,
+          name,
+          passcode,
+        });
+        try {
+          localStorage.setItem('reptag_member_id', m.id);
+          localStorage.setItem('reptag_member_name', m.name);
+        } catch {}
+        router.refresh();
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : 'Could not sign in.');
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="mt-6 space-y-4">
+      <Field label="Your name" value={name} onChange={setName} placeholder="e.g. Mike" autoFocus />
+      <PasscodeField label="4-digit passcode" value={passcode} onChange={setPasscode} />
+      <button
+        type="submit"
+        disabled={pending || !name.trim() || !passcode}
+        className="w-full px-4 py-4 text-lg font-semibold rounded-lg bg-white text-black disabled:opacity-50"
+      >
+        {pending ? 'Signing in…' : 'Continue'}
+      </button>
+      {err && <p className="text-sm text-red-400">{err}</p>}
+      <p className="text-xs text-neutral-500">
+        Forgot your passcode? Ask gym staff to reset it.
+      </p>
+    </form>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Set passcode (used when a v1-migrated member has no passcode_hash)  */
+/* ------------------------------------------------------------------ */
+
+function SetPasscodePrompt({
+  equipment,
+  gymName,
+  memberName,
+}: {
+  equipment: Equipment;
+  gymName: string;
+  memberName: string | null;
+}) {
+  const router = useRouter();
+  const [passcode, setPasscode] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [pending, startTransition] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setErr(null);
+    if (!/^\d{4}$/.test(passcode)) return setErr('Passcode must be exactly 4 digits.');
+    if (passcode !== confirm) return setErr('Passcodes don’t match.');
+    startTransition(async () => {
+      try {
+        await setPasscodeAction({ passcode });
+        router.refresh();
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : 'Could not save passcode.');
       }
     });
   }
 
   return (
     <main className="p-6 max-w-md mx-auto">
-      <Header equipment={equipment} />
-      <form onSubmit={onSubmit} className="mt-8 space-y-4">
-        <label className="block text-sm text-neutral-400">What&apos;s your name?</label>
-        <input
-          type="text"
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Your name"
-          className="w-full px-4 py-4 text-lg rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-500 focus:outline-none"
-        />
+      <Header equipment={equipment} gymName={gymName} />
+      <div className="mt-6 p-4 rounded-xl bg-neutral-900 border border-neutral-800">
+        <p className="text-sm text-neutral-300">
+          Welcome back{memberName ? `, ${memberName}` : ''}. Set a 4-digit passcode so you can log in
+          from any phone.
+        </p>
+      </div>
+      <form onSubmit={onSubmit} className="mt-6 space-y-4">
+        <PasscodeField label="Choose a 4-digit passcode" value={passcode} onChange={setPasscode} autoFocus />
+        <PasscodeField label="Confirm passcode" value={confirm} onChange={setConfirm} />
         <button
           type="submit"
-          disabled={pending || !name.trim()}
+          disabled={pending || !passcode || !confirm}
           className="w-full px-4 py-4 text-lg font-semibold rounded-lg bg-white text-black disabled:opacity-50"
         >
-          {pending ? 'Saving…' : 'Continue'}
+          {pending ? 'Saving…' : 'Save passcode'}
         </button>
         {err && <p className="text-sm text-red-400">{err}</p>}
-        <p className="text-xs text-neutral-500 mt-2">
-          Saved on this device only — no email needed for the demo.
-        </p>
       </form>
     </main>
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Log view                                                            */
+/* ------------------------------------------------------------------ */
+
 function LogView({
   equipment,
+  gymName,
+  memberName,
   recentSets,
   suggestion,
 }: {
   equipment: Equipment;
+  gymName: string;
+  memberName: string | null;
   recentSets: Set[];
   suggestion: Suggestion;
 }) {
   const router = useRouter();
-  const last = recentSets[0];
-  const lastSession = recentSets.length
-    ? groupBySession(recentSets)[0]
-    : null;
+  const lastSession = recentSets.length ? groupBySession(recentSets)[0] : null;
   const [weight, setWeight] = useState<string>(
     suggestion.kind === 'first-time' ? '' : String(suggestion.weight),
   );
@@ -105,11 +283,11 @@ function LogView({
     const r = Number(reps);
     if (!Number.isFinite(w) || w <= 0) return setErr('Enter a valid weight.');
     if (!Number.isInteger(r) || r <= 0) return setErr('Enter a valid rep count.');
-
     startTransition(async () => {
       try {
         await logSet({
           equipmentId: equipment.id,
+          gymId: equipment.gym_id,
           weight: w,
           reps: r,
           qrSlug: equipment.qr_slug,
@@ -122,11 +300,21 @@ function LogView({
     });
   }
 
+  function onSignOut() {
+    startTransition(async () => {
+      await signOutMember();
+      try {
+        localStorage.removeItem('reptag_member_id');
+        localStorage.removeItem('reptag_member_name');
+      } catch {}
+      router.refresh();
+    });
+  }
+
   return (
     <main className="p-4 max-w-md mx-auto pb-32">
-      <Header equipment={equipment} />
+      <Header equipment={equipment} gymName={gymName} />
 
-      {/* Last session card */}
       <section className="mt-6 p-4 rounded-xl bg-neutral-900 border border-neutral-800">
         <h2 className="text-xs uppercase tracking-wider text-neutral-500">Last Time</h2>
         {lastSession ? (
@@ -142,13 +330,11 @@ function LogView({
         )}
       </section>
 
-      {/* Suggested target */}
       <section className="mt-3 p-4 rounded-xl bg-neutral-900 border border-neutral-800">
         <h2 className="text-xs uppercase tracking-wider text-neutral-500">Suggested Today</h2>
         <p className="mt-1 text-lg">{describeSuggestion(suggestion)}</p>
       </section>
 
-      {/* Log form */}
       <form onSubmit={onSubmit} className="mt-6 space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
@@ -187,7 +373,21 @@ function LogView({
         )}
       </form>
 
-      {/* Recent history */}
+      <section className="mt-6 flex gap-3">
+        <Link
+          href="/scan"
+          className="flex-1 px-4 py-3 rounded-lg border border-neutral-700 text-center text-sm font-medium"
+        >
+          Scan another machine
+        </Link>
+        <Link
+          href="/me/stats"
+          className="flex-1 px-4 py-3 rounded-lg border border-neutral-700 text-center text-sm font-medium"
+        >
+          My Stats
+        </Link>
+      </section>
+
       {recentSets.length > 0 && (
         <section className="mt-8">
           <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-2">Recent History</h2>
@@ -204,23 +404,86 @@ function LogView({
         </section>
       )}
 
-      {last && (
-        <p className="mt-8 text-xs text-neutral-600 text-center">
-          Logged as {getName()} · clear browser data to switch identity
-        </p>
-      )}
+      <p className="mt-8 text-xs text-neutral-600 text-center">
+        Logged as {memberName ?? 'you'} ·{' '}
+        <button type="button" onClick={onSignOut} className="underline">
+          sign out
+        </button>
+      </p>
     </main>
   );
 }
 
-function Header({ equipment }: { equipment: Equipment }) {
+/* ------------------------------------------------------------------ */
+/* Bits                                                                */
+/* ------------------------------------------------------------------ */
+
+function Header({ equipment, gymName }: { equipment: Equipment; gymName: string }) {
   return (
     <header>
       <h1 className="text-3xl font-semibold tracking-tight">{equipment.name}</h1>
       <p className="text-sm text-neutral-400">
-        {[equipment.machine_label, equipment.gym_name].filter(Boolean).join(' · ')}
+        {[equipment.machine_label, gymName].filter(Boolean).join(' · ')}
       </p>
     </header>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  autoFocus,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  autoFocus?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="block text-sm text-neutral-400 mb-1">{label}</span>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        className="w-full px-4 py-4 text-lg rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-500 focus:outline-none"
+      />
+    </label>
+  );
+}
+
+function PasscodeField({
+  label,
+  value,
+  onChange,
+  autoFocus,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  autoFocus?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="block text-sm text-neutral-400 mb-1">{label}</span>
+      <input
+        type="password"
+        inputMode="numeric"
+        autoComplete="off"
+        maxLength={4}
+        pattern="\d{4}"
+        value={value}
+        onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 4))}
+        placeholder="••••"
+        autoFocus={autoFocus}
+        className="w-full px-4 py-4 text-2xl tracking-[0.4em] tabular-nums rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-500 focus:outline-none"
+      />
+    </label>
   );
 }
 
@@ -231,11 +494,6 @@ function fmtWeight(w: number): string {
 function fmtDay(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-function getName(): string {
-  if (typeof window === 'undefined') return 'you';
-  return localStorage.getItem('reptag_user_name') ?? 'you';
 }
 
 function groupBySession(sets: Set[]): Array<{ day: string; sets: Set[] }> {

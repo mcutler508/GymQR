@@ -31,17 +31,25 @@ export type Equipment = {
   qr_slug: string;
   name: string;
   machine_label: string | null;
-  gym_name: string | null;
+  gym_id: string;
   status: 'active' | 'inactive';
 };
 
 export type Set = {
   id: string;
-  user_id: string;
+  member_id: string;
   equipment_id: string;
+  gym_id: string;
   weight: number;
   reps: number;
   rpe: number | null;
   note: string | null;
   logged_at: string;
+};
+
+export type Gym = {
+  id: string;
+  name: string;
+  slug: string;
+  owner_id: string | null;
 };

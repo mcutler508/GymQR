@@ -4,28 +4,78 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Status
 
-**Demo MVP scaffold complete, full MVP not.** A narrow slice of the planning doc has been built — enough to print one QR sticker and demo the scan-to-log loop at a gym. See `README.md` for setup/deploy. The planning doc (`qr_gym_mvp_planning_doc_v2.md`) remains the source of truth for everything *not yet* built.
+**v2 shipped.** Two-persona product: gym owners (Supabase Auth, central command) and gym members (name + 4-digit passcode, scoped per gym). In-app QR scanner, member stats with charts, owner aggregate analytics. The planning doc (`qr_gym_mvp_planning_doc_v2.md`) remains the source of truth for the long-term vision.
 
-### What exists today
-- Next.js 15 + Tailwind v3 + Supabase JS scaffolded in repo root.
-- `/scan/[qrSlug]` — server-component data fetch + `ScanClient` for name prompt / log form / recent history.
-- `/admin/equipment/[id]/qr` — printable QR page using the `qrcode` package.
-- `/` — operator landing page listing seeded equipment.
-- `supabase/migrations/0001_init.sql` — slim schema (`users`, `equipment`, `sets`, `scan_events`) with **demo-only permissive RLS**.
-- `supabase/seed.sql` — single Leg Press row.
-- Server actions in `src/app/scan/[qrSlug]/actions.ts`: `ensureUser`, `logSet`, `recordScan`.
+### Routes
 
-### What was deliberately deferred (do not assume these exist)
-- **Supabase Auth.** Identity is a `users` row + cookie + localStorage; no email, no magic link, no `auth.users` link. Replacing this is the biggest follow-up.
-- **Real RLS.** Every table has `using (true) with check (true)` so the anon key works without auth context. Tighten to `auth.uid()`-based policies before any non-demo use.
-- **Gyms / gym_memberships tables.** Single hardcoded `gym_name` column on `equipment`.
-- **Admin UI.** No equipment CRUD form, list, edit, or analytics — adding equipment is a SQL insert.
-- **Member dashboard, `/history`, `/settings`, login pages, sticker-sheet PDF, workout_sessions table.**
+**Public**
+- `/` — marketing landing
+- `/owner/sign-up` — email + password + gym name (creates `auth.users` row + `gyms` row owned by them)
+- `/owner/sign-in`
+
+**Owner (gated by `/owner/(app)/layout.tsx` via `getServerClient()`)**
+- `/owner` — dashboard: today's scans, today's sets, equipment + member counts, quick actions
+- `/owner/equipment` — list with usage badges (set count, last-scan relative time)
+- `/owner/equipment/new` — form, generates `qr_slug` via `src/lib/qr.ts`, redirects to print page
+- `/owner/equipment/[id]/edit` — name, machine label, active/inactive toggle
+- `/owner/equipment/[id]/qr` — printable QR (canvas via `qrcode` package + print stylesheet)
+- `/owner/members` — roster with **aggregate-only counts** (sets, machines visited, last seen) + Reset Passcode action
+
+**Member (gated by `reptag_member_id` cookie)**
+- `/scan` — in-app camera viewfinder (BarcodeDetector when available, jsQR fallback)
+- `/scan/[qrSlug]` — three-mode flow: First time (create), Returning (sign in), Set passcode (for migrated/reset members) → log view
+- `/me/stats` — overview: lifetime volume, workouts, weekly streak, total sets, per-machine cards with sparklines
+- `/me/stats/[equipmentId]` — per-machine PR + full Recharts progression chart
+
+### Data model (current)
+
+```
+auth.users          (Supabase Auth — gym owners only)
+gyms                (id, name, slug, owner_id → auth.users)
+members             (id, gym_id, name, passcode_hash) — UNIQUE(gym_id, lower(name))
+equipment           (id, gym_id, qr_slug, name, machine_label, status)
+sets                (id, member_id, equipment_id, gym_id, weight, reps, rpe, note, logged_at)
+scan_events         (id, member_id?, equipment_id, gym_id, scanned_at, user_agent)
+```
+
+Migrations applied to Supabase: `0001_init.sql`, `0002_v2_schema.sql`, `0003_owner_rls.sql`.
+
+### RLS posture
+
+- `gyms`, `equipment`: SELECT public; INSERT/UPDATE/DELETE require `auth.uid() = owner_id` (chained via `gyms` for `equipment`).
+- `members`, `sets`, `scan_events`: still permissive `demo_all`. Tighten when (if) members move to Supabase Auth.
+
+**Implication**: anyone with the anon key can write to `members`/`sets`/`scan_events` if they know the slug + gym_id. Defense in depth lives in server actions, which authenticate the owner before mutating member rows.
+
+### Key libs
+
+- `src/lib/supabase.ts` — anon-key client (member side), lazy-Proxy to defer env-var check.
+- `src/lib/supabase-server.ts` — `@supabase/ssr` per-request client bound to cookies (owner side).
+- `src/middleware.ts` — refreshes Supabase Auth cookies on `/owner/*`.
+- `src/lib/auth-member.ts` — `createMember`, `signInMember`, `setPasscode` (bcryptjs, 10 rounds).
+- `src/lib/qr.ts` — slug normalization with random suffix.
+- `src/lib/stats.ts` — pure stat helpers (`lifetimeTotals`, `weeklyStreak`, `prFor`, `progressionFor`).
+- `src/lib/suggested-target.ts` — +5 lbs at 8 reps / +1 rep otherwise.
+
+### Demo dependencies you must set in Supabase
+
+- **Email confirmation: OFF** in Authentication → Providers → Email. (Otherwise sign-up succeeds but the gym insert fails because there's no session and RLS requires `auth.uid()`.)
+
+### Still deferred (when you pick up work)
+
+- Members on Supabase Auth (would tighten RLS on `members`/`sets`/`scan_events`).
+- Multi-equipment sticker sheet PDF.
+- Owner branding / logo / theming.
+- Stripe billing.
+- Workout sessions grouping.
+- Detection of duplicate scans (one scan_events row per legitimate intent, not per render).
 
 ### When picking up work, read in this order
-1. `README.md` for the current setup/deploy story.
-2. `qr_gym_mvp_planning_doc_v2.md` for the destination architecture.
-3. The "What was deliberately deferred" list above to know what's safe to assume vs. what needs building.
+
+1. `README.md` for setup/deploy.
+2. The route table above for where to find things.
+3. `qr_gym_mvp_planning_doc_v2.md` for the long-term vision.
+4. `C:\Users\mcutl\.claude\plans\i-want-an-mvp-twinkly-cloud.md` for the v2 plan that produced this state.
 
 ## Product (RepTag / QR Gym)
 
