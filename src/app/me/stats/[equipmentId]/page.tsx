@@ -39,10 +39,10 @@ export default async function MachineStatsPage({
     );
   }
 
-  const [equipmentRes, memberRes] = await Promise.all([
+  const [equipmentRes] = await Promise.all([
     supabase
       .from('equipment')
-      .select('id, name, machine_label, qr_slug, gym_id, gyms(theme)')
+      .select('id, name, machine_label, qr_slug, gym_id, gyms(theme, timezone)')
       .eq('id', equipmentId)
       .maybeSingle<{
         id: string;
@@ -50,14 +50,14 @@ export default async function MachineStatsPage({
         machine_label: string | null;
         qr_slug: string;
         gym_id: string;
-        gyms: { theme: GymTheme } | null;
+        gyms: { theme: GymTheme; timezone: string } | null;
       }>(),
-    supabase.from('members').select('gym_id').eq('id', memberId).maybeSingle(),
   ]);
 
   if (!equipmentRes.data) notFound();
   const equipment = equipmentRes.data;
   const theme: GymTheme = equipment.gyms?.theme ?? 'halogen';
+  const timezone = equipment.gyms?.timezone ?? 'UTC';
 
   const { data: setsRaw } = await supabase
     .from('sets')
@@ -68,9 +68,9 @@ export default async function MachineStatsPage({
     .returns<SetRow[]>();
 
   const sets = setsRaw ?? [];
-  const totals = lifetimeTotals(sets);
+  const totals = lifetimeTotals(sets, timezone);
   const pr = prFor(sets);
-  const progression = progressionFor(sets);
+  const progression = progressionFor(sets, timezone);
 
   return (
     <div data-theme={theme} className="min-h-screen bg-canvas text-ink">

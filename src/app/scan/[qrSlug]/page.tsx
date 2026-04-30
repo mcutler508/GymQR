@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { supabase, type Set } from '@/lib/supabase';
 import { suggestTarget } from '@/lib/suggested-target';
+import { groupIntoSessions } from '@/lib/stats';
 import { ScanClient } from './ScanClient';
 import { recordScan } from './actions';
 
@@ -18,7 +19,7 @@ type EquipmentJoin = {
   machine_label: string | null;
   gym_id: string;
   status: 'active' | 'inactive';
-  gyms: { name: string; theme: GymTheme } | null;
+  gyms: { name: string; theme: GymTheme; timezone: string } | null;
 };
 
 export default async function ScanPage({
@@ -30,7 +31,7 @@ export default async function ScanPage({
 
   const { data: equipment, error } = await supabase
     .from('equipment')
-    .select('id, qr_slug, name, machine_label, gym_id, status, gyms(name, theme)')
+    .select('id, qr_slug, name, machine_label, gym_id, status, gyms(name, theme, timezone)')
     .eq('qr_slug', qrSlug)
     .maybeSingle<EquipmentJoin>();
 
@@ -96,6 +97,14 @@ export default async function ScanPage({
 
   const suggestion = suggestTarget(recentSets[0]);
   const gymName = equipment.gyms?.name ?? 'Gym';
+  const timezone = equipment.gyms?.timezone ?? 'UTC';
+
+  // Pre-compute sessions on the server: latest 10 sets are already in desc
+  // order, but groupIntoSessions sorts ascending internally and returns
+  // sessions earliest-first. We reverse for display (most recent first).
+  const sessions = groupIntoSessions(recentSets, 2);
+  const lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
+  const recentSessions = [...sessions].reverse();
 
   return (
     <div data-theme={theme} className="min-h-screen bg-canvas text-ink">
@@ -109,10 +118,12 @@ export default async function ScanPage({
           status: equipment.status,
         }}
         gymName={gymName}
+        gymTimezone={timezone}
         identified={!!memberId && !!memberName}
         needsPasscode={needsPasscode}
         memberName={memberName}
-        recentSets={recentSets}
+        lastSession={lastSession}
+        recentSessions={recentSessions}
         suggestion={suggestion}
       />
     </div>

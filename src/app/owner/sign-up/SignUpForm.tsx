@@ -16,8 +16,18 @@ export function SignUpForm() {
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErr(null);
+    // Capture the device's IANA timezone so the new gym defaults to the
+    // owner's local time rather than UTC. Owner can override later in
+    // /owner/branding.
+    const timezone = (() => {
+      try {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
+      } catch {
+        return undefined;
+      }
+    })();
     startTransition(async () => {
-      const res = await signUpOwner({ email, password, gymName });
+      const res = await signUpOwner({ email, password, gymName, timezone });
       if (!res.ok) return setErr(res.error);
       if (res.needsEmailConfirm) {
         setNeedsConfirm(true);

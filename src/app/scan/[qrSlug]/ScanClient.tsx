@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Equipment, Set } from '@/lib/supabase';
 import { describeSuggestion, type Suggestion } from '@/lib/suggested-target';
+import { formatLocal } from '@/lib/timezone';
 import {
   createMemberAction,
   signInMemberAction,
@@ -13,13 +14,17 @@ import {
   signOutMember,
 } from './actions';
 
+type Session = { startedAt: string; endedAt: string; sets: Set[] };
+
 type Props = {
   equipment: Equipment;
   gymName: string;
+  gymTimezone: string;
   identified: boolean;
   needsPasscode: boolean;
   memberName: string | null;
-  recentSets: Set[];
+  lastSession: Session | null;
+  recentSessions: Session[];
   suggestion: Suggestion;
 };
 
@@ -34,8 +39,10 @@ export function ScanClient(props: Props) {
     <LogView
       equipment={props.equipment}
       gymName={props.gymName}
+      gymTimezone={props.gymTimezone}
       memberName={props.memberName}
-      recentSets={props.recentSets}
+      lastSession={props.lastSession}
+      recentSessions={props.recentSessions}
       suggestion={props.suggestion}
     />
   );
@@ -240,18 +247,21 @@ function SetPasscodePrompt({
 function LogView({
   equipment,
   gymName,
+  gymTimezone,
   memberName,
-  recentSets,
+  lastSession,
+  recentSessions,
   suggestion,
 }: {
   equipment: Equipment;
   gymName: string;
+  gymTimezone: string;
   memberName: string | null;
-  recentSets: Set[];
+  lastSession: Session | null;
+  recentSessions: Session[];
   suggestion: Suggestion;
 }) {
   const router = useRouter();
-  const lastSession = recentSets.length ? groupBySession(recentSets)[0] : null;
   const [weight, setWeight] = useState<string>(
     suggestion.kind === 'first-time' ? '' : String(suggestion.weight),
   );
@@ -304,7 +314,14 @@ function LogView({
       <Header equipment={equipment} gymName={gymName} />
 
       <section className="mt-6 p-4 rounded-card bg-surface border border-line">
-        <Kicker>Last Time</Kicker>
+        <div className="flex items-baseline justify-between gap-2">
+          <Kicker>Last Time</Kicker>
+          {lastSession && (
+            <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
+              {formatLocal(lastSession.startedAt, gymTimezone, 'MMM d · h:mm a')}
+            </span>
+          )}
+        </div>
         {lastSession ? (
           <ul className="mt-2 space-y-1 text-lg">
             {lastSession.sets.map((s) => (
@@ -352,15 +369,17 @@ function LogView({
         </Link>
       </section>
 
-      {recentSets.length > 0 && (
+      {recentSessions.length > 0 && (
         <section className="mt-8">
           <Kicker className="mb-2">Recent History</Kicker>
           <ul className="space-y-2">
-            {groupBySession(recentSets).map((group) => (
-              <li key={group.day} className="text-sm">
-                <span className="text-muted">{fmtDay(group.day)}</span>{' '}
+            {recentSessions.map((session) => (
+              <li key={session.startedAt} className="text-sm">
+                <span className="text-muted">
+                  {formatLocal(session.startedAt, gymTimezone, 'MMM d · h:mm a')}
+                </span>{' '}
                 <span className="tabular-nums">
-                  {group.sets.map((s) => `${fmtWeight(s.weight)} × ${s.reps}`).join(', ')}
+                  {session.sets.map((s) => `${fmtWeight(s.weight)} × ${s.reps}`).join(', ')}
                 </span>
               </li>
             ))}
@@ -575,20 +594,4 @@ function PasscodeField({
 
 function fmtWeight(w: number): string {
   return Number.isInteger(w) ? String(w) : w.toFixed(1);
-}
-
-function fmtDay(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-function groupBySession(sets: Set[]): Array<{ day: string; sets: Set[] }> {
-  const groups: Record<string, Set[]> = {};
-  for (const s of sets) {
-    const day = s.logged_at.slice(0, 10);
-    (groups[day] ??= []).push(s);
-  }
-  return Object.entries(groups)
-    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
-    .map(([day, sets]) => ({ day, sets }));
 }

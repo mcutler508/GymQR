@@ -32,13 +32,13 @@ export default async function MyStatsPage() {
 
   const { data: member } = await supabase
     .from('members')
-    .select('id, name, gym_id, gyms(name, theme)')
+    .select('id, name, gym_id, gyms(name, theme, timezone)')
     .eq('id', memberId)
     .maybeSingle<{
       id: string;
       name: string;
       gym_id: string;
-      gyms: { name: string; theme: GymTheme } | null;
+      gyms: { name: string; theme: GymTheme; timezone: string } | null;
     }>();
 
   if (!member) {
@@ -46,6 +46,7 @@ export default async function MyStatsPage() {
   }
 
   const theme: GymTheme = member.gyms?.theme ?? 'halogen';
+  const timezone = member.gyms?.timezone ?? 'UTC';
 
   const { data: setsRaw } = await supabase
     .from('sets')
@@ -55,8 +56,8 @@ export default async function MyStatsPage() {
     .returns<SetRow[]>();
 
   const sets = setsRaw ?? [];
-  const totals = lifetimeTotals(sets);
-  const streak = weeklyStreak(sets);
+  const totals = lifetimeTotals(sets, timezone);
+  const streak = weeklyStreak(sets, timezone);
 
   const byEquipment = new Map<string, { name: string; label: string | null; sets: SetRow[] }>();
   for (const s of sets) {
@@ -72,7 +73,7 @@ export default async function MyStatsPage() {
   const machines = Array.from(byEquipment.entries())
     .map(([id, group]) => {
       const pr = prFor(group.sets);
-      const progression = progressionFor(group.sets);
+      const progression = progressionFor(group.sets, timezone);
       return {
         id,
         name: group.name,

@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { getServerClient } from '@/lib/supabase-server';
 import { generateQrSlug } from '@/lib/qr';
+import { isValidTimezone } from '@/lib/timezone';
 
 /* ---------------------------- auth actions ---------------------------- */
 
@@ -11,6 +12,7 @@ export async function signUpOwner(input: {
   email: string;
   password: string;
   gymName: string;
+  timezone?: string;
 }): Promise<{ ok: true; needsEmailConfirm: boolean } | { ok: false; error: string }> {
   const email = input.email.trim().toLowerCase();
   const gymName = input.gymName.trim();
@@ -20,6 +22,10 @@ export async function signUpOwner(input: {
   if (input.password.length < 8) {
     return { ok: false, error: 'Password must be at least 8 characters.' };
   }
+
+  // Trust browser-detected TZ, but verify it parses. Fall back to UTC if not.
+  const timezone =
+    input.timezone && isValidTimezone(input.timezone) ? input.timezone : 'UTC';
 
   const supabase = await getServerClient();
   const { data, error } = await supabase.auth.signUp({
@@ -38,6 +44,7 @@ export async function signUpOwner(input: {
       name: gymName,
       slug: await uniqueGymSlug(supabase, gymSlug),
       owner_id: data.user.id,
+      timezone,
     });
   if (gymErr) return { ok: false, error: `Created account, but couldn't create gym: ${gymErr.message}` };
 
@@ -161,6 +168,27 @@ export async function updateGymTheme(input: {
   const { error } = await supabase
     .from('gyms')
     .update({ theme: input.theme })
+    .eq('owner_id', userData.user.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/owner/branding');
+  revalidatePath('/owner');
+  return { ok: true };
+}
+
+export async function updateGymTimezone(input: {
+  timezone: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!isValidTimezone(input.timezone)) {
+    return { ok: false, error: 'Invalid timezone.' };
+  }
+  const supabase = await getServerClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { ok: false, error: 'Not signed in.' };
+
+  const { error } = await supabase
+    .from('gyms')
+    .update({ timezone: input.timezone })
     .eq('owner_id', userData.user.id);
   if (error) return { ok: false, error: error.message };
 

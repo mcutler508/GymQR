@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getServerClient } from '@/lib/supabase-server';
+import { startOfTodayUtc } from '@/lib/timezone';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,9 +12,9 @@ export default async function OwnerDashboard() {
 
   const { data: gym } = await supabase
     .from('gyms')
-    .select('id, name, slug')
+    .select('id, name, slug, timezone')
     .eq('owner_id', userData.user.id)
-    .maybeSingle();
+    .maybeSingle<{ id: string; name: string; slug: string; timezone: string }>();
 
   if (!gym) {
     return (
@@ -25,9 +26,8 @@ export default async function OwnerDashboard() {
     );
   }
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const todayIso = startOfToday.toISOString();
+  // "Today" = midnight in the gym's local timezone, expressed as UTC instant.
+  const todayIso = startOfTodayUtc(gym.timezone).toISOString();
 
   const [
     { count: equipmentCount },
