@@ -175,12 +175,23 @@ export function Scanner() {
           {status === 'detected' ? 'Got it. Loading…' : 'Hold steady — it auto-detects.'}
         </p>
 
-        <a
-          href="/"
-          className="mt-8 block text-center text-sm text-muted underline"
+        <button
+          type="button"
+          onClick={() => {
+            // Go back to wherever the member came from (typically their last
+            // scanned equipment page). If there's no history (direct URL
+            // entry), drop them at /me/stats which handles unidentified
+            // gracefully.
+            if (typeof window !== 'undefined' && window.history.length > 1) {
+              router.back();
+            } else {
+              router.push('/me/stats');
+            }
+          }}
+          className="mt-8 block w-full text-center text-sm text-muted underline"
         >
           Cancel
-        </a>
+        </button>
       </div>
     </main>
   );
