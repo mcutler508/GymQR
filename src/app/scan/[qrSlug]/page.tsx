@@ -9,6 +9,8 @@ const COOKIE_NAME = 'reptag_member_id';
 
 export const dynamic = 'force-dynamic';
 
+export type GymTheme = 'halogen' | 'concrete' | 'locker-room' | 'athletic';
+
 type EquipmentJoin = {
   id: string;
   qr_slug: string;
@@ -16,7 +18,7 @@ type EquipmentJoin = {
   machine_label: string | null;
   gym_id: string;
   status: 'active' | 'inactive';
-  gyms: { name: string } | null;
+  gyms: { name: string; theme: GymTheme } | null;
 };
 
 export default async function ScanPage({
@@ -28,29 +30,33 @@ export default async function ScanPage({
 
   const { data: equipment, error } = await supabase
     .from('equipment')
-    .select('id, qr_slug, name, machine_label, gym_id, status, gyms(name)')
+    .select('id, qr_slug, name, machine_label, gym_id, status, gyms(name, theme)')
     .eq('qr_slug', qrSlug)
     .maybeSingle<EquipmentJoin>();
 
   if (error) {
     return (
-      <main className="p-6 max-w-md mx-auto text-center">
-        <h1 className="text-xl font-semibold mb-2">Something went wrong</h1>
-        <p className="text-neutral-400 text-sm">{error.message}</p>
+      <main className="p-6 max-w-md mx-auto text-center bg-canvas text-ink min-h-screen">
+        <h1 className="text-xl font-semibold mb-2 mt-12">Something went wrong</h1>
+        <p className="text-muted text-sm">{error.message}</p>
       </main>
     );
   }
 
   if (!equipment) notFound();
 
+  const theme: GymTheme = equipment.gyms?.theme ?? 'halogen';
+
   if (equipment.status === 'inactive') {
     return (
-      <main className="p-6 max-w-md mx-auto text-center">
-        <h1 className="text-xl font-semibold mb-2">Equipment unavailable</h1>
-        <p className="text-neutral-400 text-sm">
-          This machine is offline. Ask a staff member if it should be active.
-        </p>
-      </main>
+      <div data-theme={theme} className="min-h-screen bg-canvas text-ink">
+        <main className="p-6 max-w-md mx-auto text-center pt-16">
+          <h1 className="text-xl font-semibold mb-2">Equipment unavailable</h1>
+          <p className="text-muted text-sm">
+            This machine is offline. Ask a staff member if it should be active.
+          </p>
+        </main>
+      </div>
     );
   }
 
@@ -84,8 +90,6 @@ export default async function ScanPage({
       memberName = memberRes.data.name;
       needsPasscode = !memberRes.data.passcode_hash;
     } else {
-      // Cookie points at a member that no longer exists (deleted upstream).
-      // Fall through to the unidentified path; ScanClient will prompt.
       memberName = null;
     }
   }
@@ -94,21 +98,23 @@ export default async function ScanPage({
   const gymName = equipment.gyms?.name ?? 'Gym';
 
   return (
-    <ScanClient
-      equipment={{
-        id: equipment.id,
-        qr_slug: equipment.qr_slug,
-        name: equipment.name,
-        machine_label: equipment.machine_label,
-        gym_id: equipment.gym_id,
-        status: equipment.status,
-      }}
-      gymName={gymName}
-      identified={!!memberId && !!memberName}
-      needsPasscode={needsPasscode}
-      memberName={memberName}
-      recentSets={recentSets}
-      suggestion={suggestion}
-    />
+    <div data-theme={theme} className="min-h-screen bg-canvas text-ink">
+      <ScanClient
+        equipment={{
+          id: equipment.id,
+          qr_slug: equipment.qr_slug,
+          name: equipment.name,
+          machine_label: equipment.machine_label,
+          gym_id: equipment.gym_id,
+          status: equipment.status,
+        }}
+        gymName={gymName}
+        identified={!!memberId && !!memberName}
+        needsPasscode={needsPasscode}
+        memberName={memberName}
+        recentSets={recentSets}
+        suggestion={suggestion}
+      />
+    </div>
   );
 }

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RepTag — Design directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 64px 24px;
+    font-family: Inter, system-ui, -apple-system, sans-serif;
+    background: #0a0a0a;
+    color: #ededed;
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #737373;
+  }
+  h1 {
+    font-size: 36px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    margin: 12px 0 12px;
+  }
+  .subtitle {
+    color: #a3a3a3;
+    font-size: 15px;
+    margin: 0 0 48px;
+    max-width: 540px;
+  }
+  .grid {
+    display: grid;
+    gap: 14px;
+  }
+  @media (min-width: 600px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px;
+    border: 1px solid #1f1f1f;
+    border-radius: 14px;
+    background: #111;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .card:hover { border-color: #404040; transform: translateY(-2px); }
+  .tag {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #737373;
+  }
+  .name {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0;
+  }
+  .desc { font-size: 14px; color: #a3a3a3; margin: 0; }
+  .swatches { display: flex; gap: 6px; margin-top: 4px; }
+  .sw {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .footer {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid #1f1f1f;
+    color: #737373;
+    font-size: 13px;
+  }
+  .footer code {
+    background: #1f1f1f;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="eyebrow">RepTag · Direction studies</div>
+    <h1>Pick a vibe.</h1>
+    <p class="subtitle">
+      Same content (Bench Press scan page) rendered in four distinct visual systems. Tap a card to view it,
+      then tell me which one to take live.
+    </p>
+
+    <div class="grid">
+      <a class="card" href="a-halogen.html">
+        <span class="tag">A · Dark editorial</span>
+        <h2 class="name">Halogen Gym</h2>
+        <p class="desc">Editorial serif headlines, mono kickers, jet-black canvas, single yellow accent. Lifting framed as a craft — premium and quiet.</p>
+        <div class="swatches">
+          <span class="sw" style="background:#0a0a0a"></span>
+          <span class="sw" style="background:#1f1f1f"></span>
+          <span class="sw" style="background:#f5d547"></span>
+          <span class="sw" style="background:#ededed"></span>
+        </div>
+      </a>
+
+      <a class="card" href="b-concrete.html">
+        <span class="tag">B · Industrial</span>
+        <h2 class="name">Concrete &amp; Ember</h2>
+        <p class="desc">Charcoal canvas, condensed display sans for huge numerics, hard 0-radius corners, ember-orange accent. Reads like the gym wall.</p>
+        <div class="swatches">
+          <span class="sw" style="background:#18181b"></span>
+          <span class="sw" style="background:#27272a"></span>
+          <span class="sw" style="background:#f97316"></span>
+          <span class="sw" style="background:#f4f4f5"></span>
+        </div>
+      </a>
+
+      <a class="card" href="c-locker-room.html">
+        <span class="tag">C · Warm light</span>
+        <h2 class="name">Locker Room</h2>
+        <p class="desc">Stone-warm light mode, soft shadows, generous whitespace, restrained emerald accent. Apple Health meets Stripe — premium SaaS posture.</p>
+        <div class="swatches">
+          <span class="sw" style="background:#fafaf9"></span>
+          <span class="sw" style="background:#e7e5e4"></span>
+          <span class="sw" style="background:#059669"></span>
+          <span class="sw" style="background:#1c1917"></span>
+        </div>
+      </a>
+
+      <a class="card" href="d-athletic.html">
+        <span class="tag">D · High energy</span>
+        <h2 class="name">Athletic Neon</h2>
+        <p class="desc">Pure black, oversized italic display, neon-lime accent with subtle glow, big numerics. Nike Training Club energy at 5am.</p>
+        <div class="swatches">
+          <span class="sw" style="background:#000000"></span>
+          <span class="sw" style="background:#1a1a1a"></span>
+          <span class="sw" style="background:#d9f99d"></span>
+          <span class="sw" style="background:#ffffff"></span>
+        </div>
+      </a>
+    </div>
+
+    <p class="footer">
+      Live at <code>/design-previews/index.html</code>. Each direction shows the scan page plus a small owner-side card so you can feel how the system extends.
+    </p>
+  </div>
+</body>
+</html>

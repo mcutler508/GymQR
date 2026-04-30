@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
+import { allFontVariables, inter } from '@/lib/fonts';
 
 export const metadata: Metadata = {
   title: 'RepTag — Your gym remembers your lifts',
@@ -15,8 +16,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="font-sans antialiased min-h-screen">{children}</body>
+    <html lang="en" className={allFontVariables}>
+      <body className={`${inter.className} antialiased min-h-screen`}>{children}</body>
     </html>
   );
 }

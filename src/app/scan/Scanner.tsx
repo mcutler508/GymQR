@@ -143,18 +143,18 @@ export function Scanner() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-black flex flex-col items-center justify-center text-white">
+    <main className="min-h-screen flex flex-col items-center justify-center">
       <div className="w-full max-w-md p-4">
         <header className="mb-4 text-center">
           <h1 className="text-xl font-semibold">Scan a machine</h1>
-          <p className="text-sm text-neutral-400 mt-1">Point at the QR sticker.</p>
+          <p className="text-sm text-muted mt-1">Point at the QR sticker.</p>
         </header>
 
         {status === 'denied' && <CameraDenied />}
         {status === 'error' && <CameraError message={errMsg} />}
 
         {(status === 'requesting' || status === 'scanning' || status === 'detected') && (
-          <div className="relative w-full aspect-square overflow-hidden rounded-2xl bg-neutral-900 border border-neutral-800">
+          <div className="relative w-full aspect-square overflow-hidden rounded-card bg-surface border border-line">
             <video
               ref={videoRef}
               playsInline
@@ -164,20 +164,20 @@ export function Scanner() {
             <canvas ref={canvasRef} className="hidden" />
             <Reticle detected={status === 'detected'} />
             {status === 'requesting' && (
-              <div className="absolute inset-0 flex items-center justify-center text-sm text-neutral-300">
+              <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-strong">
                 Asking for camera…
               </div>
             )}
           </div>
         )}
 
-        <p className="mt-6 text-center text-xs text-neutral-500">
+        <p className="mt-6 text-center text-xs text-muted">
           {status === 'detected' ? 'Got it. Loading…' : 'Hold steady — it auto-detects.'}
         </p>
 
         <a
           href="/"
-          className="mt-8 block text-center text-sm text-neutral-400 underline"
+          className="mt-8 block text-center text-sm text-muted underline"
         >
           Cancel
         </a>
@@ -190,8 +190,8 @@ function Reticle({ detected }: { detected: boolean }) {
   return (
     <div className="absolute inset-0 pointer-events-none">
       <div
-        className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 aspect-square rounded-2xl border-2 transition-colors ${
-          detected ? 'border-emerald-400' : 'border-white/40'
+        className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 aspect-square rounded-card border-2 transition-colors ${
+          detected ? 'border-accent' : 'border-muted/40'
         }`}
       />
     </div>
@@ -200,9 +200,9 @@ function Reticle({ detected }: { detected: boolean }) {
 
 function CameraDenied() {
   return (
-    <div className="p-6 rounded-2xl bg-neutral-900 border border-neutral-800 text-sm">
+    <div className="p-6 rounded-card bg-surface border border-line text-sm">
       <p className="font-medium">Camera permission needed</p>
-      <p className="mt-2 text-neutral-400">
+      <p className="mt-2 text-muted">
         We need camera access to scan the QR sticker. Allow it in your browser settings, or just open
         your phone&apos;s camera app and point it at the sticker — that works too.
       </p>
@@ -212,10 +212,10 @@ function CameraDenied() {
 
 function CameraError({ message }: { message: string | null }) {
   return (
-    <div className="p-6 rounded-2xl bg-neutral-900 border border-neutral-800 text-sm">
+    <div className="p-6 rounded-card bg-surface border border-line text-sm">
       <p className="font-medium">Camera couldn&apos;t start</p>
-      <p className="mt-2 text-neutral-400">{message ?? 'Unknown error.'}</p>
-      <p className="mt-2 text-neutral-500 text-xs">
+      <p className="mt-2 text-muted">{message ?? 'Unknown error.'}</p>
+      <p className="mt-2 text-muted text-xs">
         Workaround: open your phone&apos;s camera app and scan the sticker that way — it points back here.
       </p>
     </div>

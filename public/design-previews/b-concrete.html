@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>B · Concrete &amp; Ember</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;700;900&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #18181b;
+    --surface: #27272a;
+    --surface-2: #1f1f22;
+    --line: #3f3f46;
+    --line-soft: #2a2a2d;
+    --text: #fafafa;
+    --muted: #a1a1aa;
+    --accent: #f97316;
+    --accent-hot: #fb923c;
+    --display: 'Barlow Condensed', sans-serif;
+    --sans: 'Inter', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .phone {
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 0 0 64px;
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  .brand {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .brand .accent { color: var(--accent); }
+  .meta-mono {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .label.hot { color: var(--accent); }
+
+  .hero {
+    padding: 32px 24px 24px;
+    border-bottom: 4px solid var(--accent);
+  }
+  .hero .label { margin-bottom: 4px; }
+  .hero-name {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 88px;
+    text-transform: uppercase;
+    letter-spacing: -0.005em;
+    line-height: 0.85;
+    margin-top: 8px;
+  }
+  .hero-tag {
+    margin-top: 12px;
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 12px;
+    background: #000;
+    color: var(--text);
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    letter-spacing: 0.08em;
+  }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+  .row > .cell { padding: 24px; }
+  .row > .cell + .cell { border-left: 1px solid var(--line); }
+  .cell .label { margin-bottom: 12px; }
+
+  .section { padding: 24px; border-bottom: 1px solid var(--line); }
+
+  .last-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+  .last-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .last-item .num {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 36px;
+    letter-spacing: -0.005em;
+    line-height: 1.1;
+  }
+  .last-item .reps {
+    font-family: var(--mono);
+    color: var(--muted);
+    font-size: 14px;
+    letter-spacing: 0.05em;
+  }
+
+  .suggested-block {
+    padding: 32px 24px;
+    background: #000;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+  }
+  .suggested-block::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 6px;
+    background: var(--accent);
+  }
+  .suggested-num {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 96px;
+    letter-spacing: -0.01em;
+    line-height: 1;
+    color: var(--accent);
+    margin-top: 8px;
+  }
+  .suggested-cap {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 14px;
+    max-width: 280px;
+  }
+
+  .log-form { padding: 24px; }
+  .log-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid var(--line);
+    background: #000;
+  }
+  .field { padding: 16px 20px; }
+  .field + .field { border-left: 1px solid var(--line); }
+  .field label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .field input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 48px;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    padding: 0;
+  }
+  .field input:focus { outline: none; color: var(--accent); }
+
+  .save-btn {
+    margin-top: 16px;
+    width: 100%;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 24px;
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 22px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    border-radius: 0;
+  }
+  .save-btn:hover { background: var(--accent-hot); }
+
+  .history { padding: 24px; }
+  .history .label { margin-bottom: 16px; }
+  .history-row {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    padding: 12px 0;
+    align-items: baseline;
+  }
+  .history-row + .history-row { border-top: 1px solid var(--line-soft); }
+  .history-row .date {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .history-row .sets {
+    font-family: var(--display);
+    font-weight: 500;
+    font-size: 18px;
+    letter-spacing: 0.005em;
+  }
+
+  .owner-section {
+    margin: 16px 24px 0;
+    padding: 24px;
+    background: var(--surface);
+    border-left: 6px solid var(--accent);
+  }
+  .owner-section .label { margin-bottom: 16px; }
+  .owner-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .owner-stat-num {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: 56px;
+    line-height: 1;
+    letter-spacing: -0.005em;
+  }
+  .owner-stat-lbl {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  .back-link {
+    display: block;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    margin-top: 32px;
+    padding: 12px;
+  }
+  .back-link:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <header class="topbar">
+      <span class="brand">REP<span class="accent">TAG</span></span>
+      <span class="meta-mono">M.CUTLER · 18:42</span>
+    </header>
+
+    <section class="hero">
+      <div class="label">Equipment · 04</div>
+      <h1 class="hero-name">Bench<br>Press</h1>
+      <span class="hero-tag">RACK 02 · IRON HOUSE</span>
+    </section>
+
+    <section class="section">
+      <div class="label">Last time · APR 28</div>
+      <div class="last-list">
+        <div class="last-item"><span class="num">180 lbs</span><span class="reps">× 10</span></div>
+        <div class="last-item"><span class="num">180 lbs</span><span class="reps">× 8</span></div>
+        <div class="last-item"><span class="num">165 lbs</span><span class="reps">× 10</span></div>
+      </div>
+    </section>
+
+    <section class="suggested-block">
+      <div class="label hot">Push for</div>
+      <div class="suggested-num">185 × 8</div>
+      <p class="suggested-cap">Add five pounds. Hold reps. Chase the PR.</p>
+    </section>
+
+    <section class="log-form">
+      <div class="label" style="margin-bottom:12px;">Log set</div>
+      <div class="log-row">
+        <div class="field">
+          <label>WEIGHT</label>
+          <input type="text" inputmode="decimal" value="185">
+        </div>
+        <div class="field">
+          <label>REPS</label>
+          <input type="text" inputmode="numeric" value="8">
+        </div>
+      </div>
+      <button class="save-btn">Save Set →</button>
+    </section>
+
+    <section class="history">
+      <div class="label">Recent history</div>
+      <div class="history-row"><span class="date">APR 28</span><span class="sets">180 × 10, 180 × 8, 165 × 10</span></div>
+      <div class="history-row"><span class="date">APR 25</span><span class="sets">175 × 10, 175 × 9, 160 × 10</span></div>
+      <div class="history-row"><span class="date">APR 22</span><span class="sets">175 × 8, 165 × 10</span></div>
+    </section>
+
+    <section class="owner-section">
+      <div class="label hot">Floor today · Iron House</div>
+      <div class="owner-stats">
+        <div>
+          <div class="owner-stat-num">23</div>
+          <div class="owner-stat-lbl">Scans</div>
+        </div>
+        <div>
+          <div class="owner-stat-num">47</div>
+          <div class="owner-stat-lbl">Sets</div>
+        </div>
+        <div>
+          <div class="owner-stat-num">12</div>
+          <div class="owner-stat-lbl">Members</div>
+        </div>
+      </div>
+    </section>
+
+    <a class="back-link" href="index.html">← Back to directions</a>
+  </div>
+</body>
+</html>

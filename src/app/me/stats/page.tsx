@@ -9,6 +9,7 @@ import {
   progressionFor,
 } from '@/lib/stats';
 import { Sparkline } from './Sparkline';
+import type { GymTheme } from '@/app/scan/[qrSlug]/page';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,14 +32,20 @@ export default async function MyStatsPage() {
 
   const { data: member } = await supabase
     .from('members')
-    .select('id, name, gym_id, gyms(name)')
+    .select('id, name, gym_id, gyms(name, theme)')
     .eq('id', memberId)
-    .maybeSingle<{ id: string; name: string; gym_id: string; gyms: { name: string } | null }>();
+    .maybeSingle<{
+      id: string;
+      name: string;
+      gym_id: string;
+      gyms: { name: string; theme: GymTheme } | null;
+    }>();
 
   if (!member) {
-    // Cookie points at a deleted member — clear it on the next request via redirect.
     redirect('/');
   }
+
+  const theme: GymTheme = member.gyms?.theme ?? 'halogen';
 
   const { data: setsRaw } = await supabase
     .from('sets')
@@ -51,7 +58,6 @@ export default async function MyStatsPage() {
   const totals = lifetimeTotals(sets);
   const streak = weeklyStreak(sets);
 
-  // Group by equipment for the per-machine cards.
   const byEquipment = new Map<string, { name: string; label: string | null; sets: SetRow[] }>();
   for (const s of sets) {
     const id = s.equipment_id;
@@ -80,84 +86,106 @@ export default async function MyStatsPage() {
     .sort((a, b) => (a.lastLogged && b.lastLogged ? (a.lastLogged < b.lastLogged ? 1 : -1) : 0));
 
   return (
-    <main className="p-6 max-w-2xl mx-auto pb-20">
-      <header className="mb-6">
-        <h1 className="text-3xl font-semibold tracking-tight">{member.name}</h1>
-        <p className="text-sm text-neutral-400">{member.gyms?.name ?? 'Gym'}</p>
-      </header>
+    <div data-theme={theme} className="min-h-screen bg-canvas text-ink">
+      <main className="p-6 max-w-2xl mx-auto pb-20">
+        <header className="mb-6">
+          <h1
+            className={[
+              'font-display tracking-tight leading-none',
+              'halogen:text-4xl halogen:font-medium',
+              'concrete:text-5xl concrete:font-black concrete:uppercase concrete:leading-[0.9]',
+              'locker:text-3xl locker:font-semibold',
+              'athletic:text-4xl athletic:font-black athletic:italic athletic:uppercase',
+            ].join(' ')}
+          >
+            {member.name}
+          </h1>
+          <p className="mt-2 text-sm text-muted">{member.gyms?.name ?? 'Gym'}</p>
+        </header>
 
-      <section className="grid grid-cols-2 gap-3 mb-6">
-        <Stat label="Lifetime volume" value={fmtVol(totals.totalVolume)} sub="lbs moved" />
-        <Stat label="Workouts" value={String(totals.workoutDays)} sub="days logged" />
-        <Stat label="This week" value={`${streak} / 7`} sub="days active" />
-        <Stat label="Total sets" value={String(totals.totalSets)} sub="all time" />
-      </section>
+        <section className="grid grid-cols-2 gap-3 mb-6">
+          <Stat label="Lifetime volume" value={fmtVol(totals.totalVolume)} sub="lbs moved" />
+          <Stat label="Workouts" value={String(totals.workoutDays)} sub="days logged" />
+          <Stat label="This week" value={`${streak} / 7`} sub="days active" />
+          <Stat label="Total sets" value={String(totals.totalSets)} sub="all time" />
+        </section>
 
-      <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-3">
-        Per-machine
-      </h2>
+        <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-3">
+          Per-machine
+        </h2>
 
-      {machines.length === 0 ? (
-        <p className="text-sm text-neutral-400">
-          No sets logged yet. Scan a QR sticker to get started.
-        </p>
-      ) : (
-        <ul className="space-y-3">
-          {machines.map((m) => (
-            <li key={m.id}>
-              <Link
-                href={`/me/stats/${m.id}`}
-                className="block p-4 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{m.name}</p>
-                    <p className="text-xs text-neutral-500">
-                      {[m.label, `${m.setCount} sets`].filter(Boolean).join(' · ')}
-                    </p>
-                    {m.pr && (
-                      <p className="text-sm text-neutral-300 mt-2 tabular-nums">
-                        PR <span className="font-semibold">{fmtWeight(m.pr.weight)} × {m.pr.reps}</span>
+        {machines.length === 0 ? (
+          <p className="text-sm text-muted">
+            No sets logged yet. Scan a QR sticker to get started.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {machines.map((m) => (
+              <li key={m.id}>
+                <Link
+                  href={`/me/stats/${m.id}`}
+                  className="block p-4 rounded-card bg-surface border border-line hover:border-muted transition"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="font-medium">{m.name}</p>
+                      <p className="text-xs text-muted">
+                        {[m.label, `${m.setCount} sets`].filter(Boolean).join(' · ')}
                       </p>
-                    )}
+                      {m.pr && (
+                        <p className="text-sm text-muted-strong mt-2 tabular-nums">
+                          PR <span className="font-semibold text-ink">{fmtWeight(m.pr.weight)} × {m.pr.reps}</span>
+                        </p>
+                      )}
+                    </div>
+                    <Sparkline points={m.progression.map((p) => p.weight)} />
                   </div>
-                  <Sparkline points={m.progression.map((p) => p.weight)} />
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
 
-      <p className="mt-10 text-center">
-        <Link href="/scan" className="text-sm underline text-neutral-400">
-          ← Back to scanner
-        </Link>
-      </p>
-    </main>
+        <p className="mt-10 text-center">
+          <Link href="/scan" className="text-sm underline text-muted">
+            ← Back to scanner
+          </Link>
+        </p>
+      </main>
+    </div>
   );
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
   return (
-    <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800">
-      <p className="text-xs uppercase tracking-wider text-neutral-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
-      <p className="text-xs text-neutral-500">{sub}</p>
+    <div className="p-4 rounded-card bg-surface border border-line">
+      <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">{label}</p>
+      <p
+        className={[
+          'mt-1 font-display tabular-nums',
+          'halogen:text-3xl halogen:font-medium',
+          'concrete:text-4xl concrete:font-black',
+          'locker:text-2xl locker:font-semibold',
+          'athletic:text-3xl athletic:font-black athletic:italic',
+        ].join(' ')}
+      >
+        {value}
+      </p>
+      <p className="text-xs text-muted">{sub}</p>
     </div>
   );
 }
 
 function Unidentified() {
   return (
-    <main className="p-6 max-w-md mx-auto text-center">
+    <main className="p-6 max-w-md mx-auto text-center bg-canvas text-ink min-h-screen pt-16">
       <h1 className="text-xl font-semibold mb-2">Sign in first</h1>
-      <p className="text-neutral-400 text-sm mb-6">
+      <p className="text-muted text-sm mb-6">
         Scan a QR sticker on a machine to identify yourself, then come back here for stats.
       </p>
       <Link
         href="/scan"
-        className="inline-block px-4 py-2 rounded-lg border border-neutral-700 text-sm"
+        className="inline-block px-4 py-2 rounded border border-line text-sm"
       >
         Open scanner
       </Link>

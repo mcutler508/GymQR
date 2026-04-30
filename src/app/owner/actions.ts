@@ -143,6 +143,32 @@ export async function updateEquipment(input: {
   return { ok: true };
 }
 
+/* ---------------------------- branding actions ---------------------------- */
+
+const VALID_THEMES = ['halogen', 'concrete', 'locker-room', 'athletic'] as const;
+type GymTheme = (typeof VALID_THEMES)[number];
+
+export async function updateGymTheme(input: {
+  theme: GymTheme;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!VALID_THEMES.includes(input.theme)) {
+    return { ok: false, error: 'Invalid theme.' };
+  }
+  const supabase = await getServerClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { ok: false, error: 'Not signed in.' };
+
+  const { error } = await supabase
+    .from('gyms')
+    .update({ theme: input.theme })
+    .eq('owner_id', userData.user.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/owner/branding');
+  revalidatePath('/owner');
+  return { ok: true };
+}
+
 /* ---------------------------- member actions ---------------------------- */
 
 /**

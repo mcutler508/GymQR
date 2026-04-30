@@ -32,6 +32,7 @@ export default async function GatedOwnerLayout({
               <Link href="/owner" className="hover:text-white">Dashboard</Link>
               <Link href="/owner/equipment" className="hover:text-white">Equipment</Link>
               <Link href="/owner/members" className="hover:text-white">Members</Link>
+              <Link href="/owner/branding" className="hover:text-white">Branding</Link>
             </nav>
           </div>
           <form action={signOutOwner}>

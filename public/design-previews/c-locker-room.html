@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>C · Locker Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --surface-2: #f5f5f4;
+    --line: #e7e5e4;
+    --line-soft: #f0efed;
+    --text: #1c1917;
+    --muted: #78716c;
+    --muted-strong: #44403c;
+    --accent: #059669;
+    --accent-soft: #d1fae5;
+    --accent-tint: rgba(5,150,105,0.08);
+    --shadow-sm: 0 1px 2px rgba(28,25,23,0.04);
+    --shadow-md: 0 1px 2px rgba(28,25,23,0.04), 0 4px 12px rgba(28,25,23,0.05);
+    --shadow-lg: 0 1px 3px rgba(28,25,23,0.05), 0 8px 24px rgba(28,25,23,0.06);
+    --sans: 'Inter', system-ui, sans-serif;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.55;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .phone {
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 28px 20px 80px;
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding: 0 4px;
+  }
+  .brand {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .brand-dot { color: var(--accent); }
+  .me-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 6px 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 12px;
+    color: var(--muted-strong);
+    box-shadow: var(--shadow-sm);
+  }
+  .avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #34d399, #059669);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .hero { padding: 8px 4px 20px; }
+  .hero-eyebrow {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: 0.01em;
+    margin-bottom: 4px;
+  }
+  .hero-name {
+    font-size: 36px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+  }
+  .hero-meta {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .card {
+    background: var(--surface);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--line);
+  }
+  .card + .card { margin-top: 12px; }
+
+  .card-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .last-list { margin-top: 12px; }
+  .last-item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 10px 0;
+    font-variant-numeric: tabular-nums;
+    font-size: 17px;
+  }
+  .last-item + .last-item { border-top: 1px solid var(--line-soft); }
+  .last-item .reps { color: var(--muted); font-size: 15px; }
+
+  .suggested-card {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+    border-color: rgba(5,150,105,0.18);
+  }
+  .suggested-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  .suggested-num {
+    font-size: 44px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    margin-top: 12px;
+    color: var(--text);
+  }
+  .suggested-cap {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .log-form { margin-top: 12px; }
+  .log-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .field { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; box-shadow: var(--shadow-sm); }
+  .field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    padding: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .field input:focus { outline: none; color: var(--accent); }
+
+  .save-btn {
+    margin-top: 12px;
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 16px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    border-radius: 14px;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+  }
+  .save-btn:hover { background: #047857; }
+
+  .history-row {
+    display: flex;
+    gap: 16px;
+    align-items: baseline;
+    padding: 10px 0;
+    font-size: 14px;
+  }
+  .history-row + .history-row { border-top: 1px solid var(--line-soft); }
+  .history-row .date {
+    color: var(--muted);
+    width: 70px;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .history-row .sets {
+    font-variant-numeric: tabular-nums;
+    color: var(--muted-strong);
+  }
+
+  .owner-card {
+    margin-top: 24px;
+    padding: 24px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: var(--shadow-lg);
+  }
+  .owner-card .card-label { margin-bottom: 14px; }
+  .owner-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .owner-stat-num {
+    font-size: 34px;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+  }
+  .owner-stat-num.accent { color: var(--accent); }
+  .owner-stat-lbl {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 4px;
+  }
+
+  .section-divider {
+    margin: 32px 0 12px;
+    padding: 0 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .back-link {
+    display: block;
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    text-decoration: none;
+    margin-top: 32px;
+    padding: 8px;
+  }
+  .back-link:hover { color: var(--text); }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <header class="topbar">
+      <span class="brand">RepTag<span class="brand-dot">.</span></span>
+      <span class="me-pill"><span class="avatar">M</span>Mike</span>
+    </header>
+
+    <section class="hero">
+      <div class="hero-eyebrow">Iron House Gym</div>
+      <h1 class="hero-name">Bench Press</h1>
+      <p class="hero-meta">Rack 02</p>
+    </section>
+
+    <div class="card">
+      <span class="card-label">Last time · Apr 28</span>
+      <div class="last-list">
+        <div class="last-item"><span>180 lbs</span><span class="reps">× 10</span></div>
+        <div class="last-item"><span>180 lbs</span><span class="reps">× 8</span></div>
+        <div class="last-item"><span>165 lbs</span><span class="reps">× 10</span></div>
+      </div>
+    </div>
+
+    <div class="card suggested-card">
+      <span class="suggested-pill">▲ Try today</span>
+      <div class="suggested-num">185 × 8</div>
+      <p class="suggested-cap">Add five pounds, hold reps. You've got this.</p>
+    </div>
+
+    <div class="section-divider">Log a set</div>
+    <section class="log-form">
+      <div class="log-row">
+        <div class="field">
+          <label>Weight</label>
+          <input type="text" inputmode="decimal" value="185">
+        </div>
+        <div class="field">
+          <label>Reps</label>
+          <input type="text" inputmode="numeric" value="8">
+        </div>
+      </div>
+      <button class="save-btn">Save set</button>
+    </section>
+
+    <div class="section-divider">Recent</div>
+    <div class="card">
+      <div class="history-row"><span class="date">Apr 28</span><span class="sets">180 × 10, 180 × 8, 165 × 10</span></div>
+      <div class="history-row"><span class="date">Apr 25</span><span class="sets">175 × 10, 175 × 9, 160 × 10</span></div>
+      <div class="history-row"><span class="date">Apr 22</span><span class="sets">175 × 8, 165 × 10</span></div>
+    </div>
+
+    <div class="owner-card">
+      <span class="card-label">Today · Iron House</span>
+      <div class="owner-stats">
+        <div>
+          <div class="owner-stat-num accent">23</div>
+          <div class="owner-stat-lbl">Scans</div>
+        </div>
+        <div>
+          <div class="owner-stat-num">47</div>
+          <div class="owner-stat-lbl">Sets</div>
+        </div>
+        <div>
+          <div class="owner-stat-num">12</div>
+          <div class="owner-stat-lbl">Members</div>
+        </div>
+      </div>
+    </div>
+
+    <a class="back-link" href="index.html">← Back to directions</a>
+  </div>
+</body>
+</html>

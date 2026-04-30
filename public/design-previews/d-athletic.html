@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>D · Athletic Neon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,900;1,500;1,700;1,900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #000;
+    --surface: #0a0a0a;
+    --surface-2: #141414;
+    --line: #1f1f1f;
+    --line-strong: #2a2a2a;
+    --text: #fff;
+    --muted: #71717a;
+    --muted-strong: #a3a3a3;
+    --accent: #d9f99d;
+    --accent-strong: #a3e635;
+    --accent-dim: rgba(217,249,157,0.12);
+    --sans: 'Inter', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.4;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  .phone {
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 24px 24px 80px;
+    position: relative;
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+  }
+  .brand {
+    font-style: italic;
+    font-weight: 900;
+    font-size: 18px;
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+  }
+  .brand .accent { color: var(--accent); }
+  .meta-mono {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .label {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted-strong);
+  }
+  .label.hot {
+    color: var(--accent);
+    text-shadow: 0 0 16px rgba(217,249,157,0.4);
+  }
+
+  .hero { margin-bottom: 24px; }
+  .hero .label { margin-bottom: 12px; }
+  .hero-name {
+    font-style: italic;
+    font-weight: 900;
+    font-size: 64px;
+    letter-spacing: -0.04em;
+    line-height: 0.92;
+    text-transform: uppercase;
+  }
+  .hero-name span { color: var(--accent); }
+  .hero-tag {
+    margin-top: 14px;
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--surface-2);
+    border: 1px solid var(--line-strong);
+    padding: 6px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted-strong);
+  }
+
+  .panel {
+    padding: 20px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .panel + .panel { margin-top: 12px; }
+
+  .last-list { margin-top: 12px; }
+  .last-item {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 8px 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .last-item + .last-item { border-top: 1px solid var(--line); }
+  .last-item .num {
+    font-style: italic;
+    font-weight: 900;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .last-item .reps {
+    font-family: var(--mono);
+    color: var(--muted-strong);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+  }
+
+  .suggested-panel {
+    background: linear-gradient(135deg, var(--surface) 0%, #0d0f08 100%);
+    border-color: rgba(217,249,157,0.2);
+    position: relative;
+    overflow: hidden;
+  }
+  .suggested-panel::before {
+    content: '';
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    right: -60px;
+    top: -60px;
+    background: radial-gradient(circle, rgba(217,249,157,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .suggested-num {
+    font-style: italic;
+    font-weight: 900;
+    font-size: 88px;
+    letter-spacing: -0.045em;
+    line-height: 1;
+    color: var(--accent);
+    margin-top: 8px;
+    text-shadow: 0 0 40px rgba(217,249,157,0.3);
+    position: relative;
+  }
+  .suggested-cap {
+    margin-top: 8px;
+    color: var(--muted-strong);
+    font-size: 13px;
+    position: relative;
+    max-width: 240px;
+  }
+
+  .log-form { margin-top: 20px; }
+  .log-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .field {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .field:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(217,249,157,0.18);
+  }
+  .field label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted-strong);
+    margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-style: italic;
+    font-weight: 900;
+    font-size: 36px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    padding: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .field input:focus { outline: none; color: var(--accent); }
+
+  .save-btn {
+    margin-top: 14px;
+    width: 100%;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 18px;
+    font-family: var(--sans);
+    font-style: italic;
+    font-weight: 900;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 0 30px rgba(217,249,157,0.25);
+    transition: transform 0.1s, box-shadow 0.15s;
+  }
+  .save-btn:hover {
+    background: var(--accent-strong);
+    box-shadow: 0 0 40px rgba(217,249,157,0.4);
+    transform: translateY(-1px);
+  }
+  .save-btn::after { content: ' →'; }
+
+  .section-spacer { height: 24px; }
+
+  .history { margin-top: 8px; }
+  .history-row {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    align-items: baseline;
+    padding: 10px 0;
+  }
+  .history-row + .history-row { border-top: 1px solid var(--line); }
+  .history-row .date {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .history-row .sets {
+    font-style: italic;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .owner-panel {
+    margin-top: 32px;
+    padding: 24px;
+    background: linear-gradient(135deg, var(--surface) 0%, #0a0d05 100%);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .owner-panel .label { margin-bottom: 16px; }
+  .owner-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .owner-stat-num {
+    font-style: italic;
+    font-weight: 900;
+    font-size: 48px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+  .owner-stat-num.accent { color: var(--accent); }
+  .owner-stat-lbl {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted-strong);
+    margin-top: 8px;
+  }
+
+  .back-link {
+    display: block;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    margin-top: 32px;
+    padding: 12px;
+  }
+  .back-link:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <header class="topbar">
+      <span class="brand">REP<span class="accent">/</span>TAG</span>
+      <span class="meta-mono">M.CUTLER · 18:42</span>
+    </header>
+
+    <section class="hero">
+      <div class="label hot">▶ Live</div>
+      <h1 class="hero-name">Bench<br>Press<span>.</span></h1>
+      <span class="hero-tag">Rack 02 / Iron House</span>
+    </section>
+
+    <div class="panel">
+      <span class="label">Last time · Apr 28</span>
+      <div class="last-list">
+        <div class="last-item"><span class="num">180</span><span class="reps">× 10</span></div>
+        <div class="last-item"><span class="num">180</span><span class="reps">× 8</span></div>
+        <div class="last-item"><span class="num">165</span><span class="reps">× 10</span></div>
+      </div>
+    </div>
+
+    <div class="panel suggested-panel">
+      <span class="label hot">Push for</span>
+      <div class="suggested-num">185 × 8</div>
+      <p class="suggested-cap">Add five. Hold reps. Chase the PR.</p>
+    </div>
+
+    <section class="log-form">
+      <span class="label" style="display:block;margin-bottom:10px;">Log set</span>
+      <div class="log-row">
+        <div class="field">
+          <label>Weight</label>
+          <input type="text" inputmode="decimal" value="185">
+        </div>
+        <div class="field">
+          <label>Reps</label>
+          <input type="text" inputmode="numeric" value="8">
+        </div>
+      </div>
+      <button class="save-btn">Save Set</button>
+    </section>
+
+    <div class="section-spacer"></div>
+    <div class="panel history">
+      <span class="label">Recent</span>
+      <div class="history-row"><span class="date">APR 28</span><span class="sets">180 × 10, 180 × 8, 165 × 10</span></div>
+      <div class="history-row"><span class="date">APR 25</span><span class="sets">175 × 10, 175 × 9, 160 × 10</span></div>
+      <div class="history-row"><span class="date">APR 22</span><span class="sets">175 × 8, 165 × 10</span></div>
+    </div>
+
+    <div class="owner-panel">
+      <span class="label hot">Floor today · Iron House</span>
+      <div class="owner-stats">
+        <div>
+          <div class="owner-stat-num accent">23</div>
+          <div class="owner-stat-lbl">Scans</div>
+        </div>
+        <div>
+          <div class="owner-stat-num">47</div>
+          <div class="owner-stat-lbl">Sets</div>
+        </div>
+        <div>
+          <div class="owner-stat-num">12</div>
+          <div class="owner-stat-lbl">Members</div>
+        </div>
+      </div>
+    </div>
+
+    <a class="back-link" href="index.html">← Back to directions</a>
+  </div>
+</body>
+</html>

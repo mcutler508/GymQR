@@ -56,18 +56,22 @@ function IdentityPrompt({
   return (
     <main className="p-6 max-w-md mx-auto">
       <Header equipment={equipment} gymName={gymName} />
-      <div className="mt-6 inline-flex p-1 rounded-lg bg-neutral-900 border border-neutral-800 text-sm">
+      <div className="mt-6 inline-flex p-1 rounded bg-surface border border-line text-sm">
         <button
           type="button"
           onClick={() => setMode('create')}
-          className={`px-3 py-1.5 rounded-md ${mode === 'create' ? 'bg-white text-black' : 'text-neutral-400'}`}
+          className={`px-3 py-1.5 rounded-sm transition ${
+            mode === 'create' ? 'bg-accent text-accent-ink font-medium' : 'text-muted'
+          }`}
         >
           First time
         </button>
         <button
           type="button"
           onClick={() => setMode('signin')}
-          className={`px-3 py-1.5 rounded-md ${mode === 'signin' ? 'bg-white text-black' : 'text-neutral-400'}`}
+          className={`px-3 py-1.5 rounded-sm transition ${
+            mode === 'signin' ? 'bg-accent text-accent-ink font-medium' : 'text-muted'
+          }`}
         >
           Returning
         </button>
@@ -105,7 +109,7 @@ function CreateForm({ equipment }: { equipment: Equipment }) {
           localStorage.setItem('reptag_member_id', m.id);
           localStorage.setItem('reptag_member_name', m.name);
         } catch {
-          // private mode etc — cookie is the source of truth
+          /* private mode */
         }
         router.refresh();
       } catch (e) {
@@ -116,24 +120,14 @@ function CreateForm({ equipment }: { equipment: Equipment }) {
 
   return (
     <form onSubmit={onSubmit} className="mt-6 space-y-4">
-      <Field
-        label="Your name"
-        value={name}
-        onChange={setName}
-        placeholder="e.g. Mike"
-        autoFocus
-      />
+      <Field label="Your name" value={name} onChange={setName} placeholder="e.g. Mike" autoFocus />
       <PasscodeField label="Choose a 4-digit passcode" value={passcode} onChange={setPasscode} />
       <PasscodeField label="Confirm passcode" value={confirm} onChange={setConfirm} />
-      <button
-        type="submit"
-        disabled={pending || !name.trim() || !passcode || !confirm}
-        className="w-full px-4 py-4 text-lg font-semibold rounded-lg bg-white text-black disabled:opacity-50"
-      >
+      <PrimaryButton type="submit" disabled={pending || !name.trim() || !passcode || !confirm}>
         {pending ? 'Creating…' : 'Continue'}
-      </button>
+      </PrimaryButton>
       {err && <p className="text-sm text-red-400">{err}</p>}
-      <p className="text-xs text-neutral-500">
+      <p className="text-xs text-muted">
         Your name + 4-digit passcode let you pull up your history on any phone.
       </p>
     </form>
@@ -161,7 +155,9 @@ function SignInForm({ equipment }: { equipment: Equipment }) {
         try {
           localStorage.setItem('reptag_member_id', m.id);
           localStorage.setItem('reptag_member_name', m.name);
-        } catch {}
+        } catch {
+          /* */
+        }
         router.refresh();
       } catch (e) {
         setErr(e instanceof Error ? e.message : 'Could not sign in.');
@@ -173,17 +169,11 @@ function SignInForm({ equipment }: { equipment: Equipment }) {
     <form onSubmit={onSubmit} className="mt-6 space-y-4">
       <Field label="Your name" value={name} onChange={setName} placeholder="e.g. Mike" autoFocus />
       <PasscodeField label="4-digit passcode" value={passcode} onChange={setPasscode} />
-      <button
-        type="submit"
-        disabled={pending || !name.trim() || !passcode}
-        className="w-full px-4 py-4 text-lg font-semibold rounded-lg bg-white text-black disabled:opacity-50"
-      >
+      <PrimaryButton type="submit" disabled={pending || !name.trim() || !passcode}>
         {pending ? 'Signing in…' : 'Continue'}
-      </button>
+      </PrimaryButton>
       {err && <p className="text-sm text-red-400">{err}</p>}
-      <p className="text-xs text-neutral-500">
-        Forgot your passcode? Ask gym staff to reset it.
-      </p>
+      <p className="text-xs text-muted">Forgot your passcode? Ask gym staff to reset it.</p>
     </form>
   );
 }
@@ -225,8 +215,8 @@ function SetPasscodePrompt({
   return (
     <main className="p-6 max-w-md mx-auto">
       <Header equipment={equipment} gymName={gymName} />
-      <div className="mt-6 p-4 rounded-xl bg-neutral-900 border border-neutral-800">
-        <p className="text-sm text-neutral-300">
+      <div className="mt-6 p-4 rounded-card bg-surface border border-line">
+        <p className="text-sm text-muted-strong">
           Welcome back{memberName ? `, ${memberName}` : ''}. Set a 4-digit passcode so you can log in
           from any phone.
         </p>
@@ -234,13 +224,9 @@ function SetPasscodePrompt({
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <PasscodeField label="Choose a 4-digit passcode" value={passcode} onChange={setPasscode} autoFocus />
         <PasscodeField label="Confirm passcode" value={confirm} onChange={setConfirm} />
-        <button
-          type="submit"
-          disabled={pending || !passcode || !confirm}
-          className="w-full px-4 py-4 text-lg font-semibold rounded-lg bg-white text-black disabled:opacity-50"
-        >
+        <PrimaryButton type="submit" disabled={pending || !passcode || !confirm}>
           {pending ? 'Saving…' : 'Save passcode'}
-        </button>
+        </PrimaryButton>
         {err && <p className="text-sm text-red-400">{err}</p>}
       </form>
     </main>
@@ -306,7 +292,9 @@ function LogView({
       try {
         localStorage.removeItem('reptag_member_id');
         localStorage.removeItem('reptag_member_name');
-      } catch {}
+      } catch {
+        /* */
+      }
       router.refresh();
     });
   }
@@ -315,8 +303,8 @@ function LogView({
     <main className="p-4 max-w-md mx-auto pb-32">
       <Header equipment={equipment} gymName={gymName} />
 
-      <section className="mt-6 p-4 rounded-xl bg-neutral-900 border border-neutral-800">
-        <h2 className="text-xs uppercase tracking-wider text-neutral-500">Last Time</h2>
+      <section className="mt-6 p-4 rounded-card bg-surface border border-line">
+        <Kicker>Last Time</Kicker>
         {lastSession ? (
           <ul className="mt-2 space-y-1 text-lg">
             {lastSession.sets.map((s) => (
@@ -326,47 +314,23 @@ function LogView({
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-neutral-400 text-sm">No history on this machine yet.</p>
+          <p className="mt-2 text-muted text-sm">No history on this machine yet.</p>
         )}
       </section>
 
-      <section className="mt-3 p-4 rounded-xl bg-neutral-900 border border-neutral-800">
-        <h2 className="text-xs uppercase tracking-wider text-neutral-500">Suggested Today</h2>
-        <p className="mt-1 text-lg">{describeSuggestion(suggestion)}</p>
+      <section className="mt-3 p-4 rounded-card bg-surface border border-line">
+        <Kicker>Suggested Today</Kicker>
+        <SuggestedNum suggestion={suggestion} />
       </section>
 
       <form onSubmit={onSubmit} className="mt-6 space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <label className="block">
-            <span className="block text-xs uppercase tracking-wider text-neutral-500 mb-1">Weight</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              placeholder="lbs"
-              className="w-full px-4 py-4 text-2xl tabular-nums rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-500 focus:outline-none"
-            />
-          </label>
-          <label className="block">
-            <span className="block text-xs uppercase tracking-wider text-neutral-500 mb-1">Reps</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={reps}
-              onChange={(e) => setReps(e.target.value)}
-              placeholder="reps"
-              className="w-full px-4 py-4 text-2xl tabular-nums rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-500 focus:outline-none"
-            />
-          </label>
+          <NumericInput label="Weight" value={weight} onChange={setWeight} mode="decimal" />
+          <NumericInput label="Reps" value={reps} onChange={setReps} mode="numeric" />
         </div>
-        <button
-          type="submit"
-          disabled={pending}
-          className="w-full px-4 py-5 text-lg font-semibold rounded-lg bg-white text-black disabled:opacity-50"
-        >
+        <PrimaryButton type="submit" disabled={pending} large>
           {pending ? 'Saving…' : 'Save Set'}
-        </button>
+        </PrimaryButton>
         {err && <p className="text-sm text-red-400">{err}</p>}
         {justLogged && !pending && !err && (
           <p className="text-sm text-emerald-400">Set saved.</p>
@@ -376,13 +340,13 @@ function LogView({
       <section className="mt-6 flex gap-3">
         <Link
           href="/scan"
-          className="flex-1 px-4 py-3 rounded-lg border border-neutral-700 text-center text-sm font-medium"
+          className="flex-1 px-4 py-3 rounded bg-surface border border-line text-center text-sm font-medium hover:border-muted transition"
         >
           Scan another machine
         </Link>
         <Link
           href="/me/stats"
-          className="flex-1 px-4 py-3 rounded-lg border border-neutral-700 text-center text-sm font-medium"
+          className="flex-1 px-4 py-3 rounded bg-surface border border-line text-center text-sm font-medium hover:border-muted transition"
         >
           My Stats
         </Link>
@@ -390,11 +354,11 @@ function LogView({
 
       {recentSets.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-2">Recent History</h2>
+          <Kicker className="mb-2">Recent History</Kicker>
           <ul className="space-y-2">
             {groupBySession(recentSets).map((group) => (
               <li key={group.day} className="text-sm">
-                <span className="text-neutral-500">{fmtDay(group.day)}</span>{' '}
+                <span className="text-muted">{fmtDay(group.day)}</span>{' '}
                 <span className="tabular-nums">
                   {group.sets.map((s) => `${fmtWeight(s.weight)} × ${s.reps}`).join(', ')}
                 </span>
@@ -404,7 +368,7 @@ function LogView({
         </section>
       )}
 
-      <p className="mt-8 text-xs text-neutral-600 text-center">
+      <p className="mt-8 text-xs text-muted text-center">
         Logged as {memberName ?? 'you'} ·{' '}
         <button type="button" onClick={onSignOut} className="underline">
           sign out
@@ -415,17 +379,107 @@ function LogView({
 }
 
 /* ------------------------------------------------------------------ */
-/* Bits                                                                */
+/* Themed components                                                   */
 /* ------------------------------------------------------------------ */
 
 function Header({ equipment, gymName }: { equipment: Equipment; gymName: string }) {
   return (
-    <header>
-      <h1 className="text-3xl font-semibold tracking-tight">{equipment.name}</h1>
-      <p className="text-sm text-neutral-400">
+    <header className="pt-2">
+      <h1
+        className={[
+          'font-display tracking-tight leading-none',
+          // Halogen — editorial serif, regular weight, large
+          'halogen:text-5xl halogen:font-medium halogen:tracking-[-0.02em]',
+          // Concrete — condensed black, ALL CAPS, huge
+          'concrete:text-6xl concrete:font-black concrete:uppercase concrete:leading-[0.85] concrete:tracking-[-0.005em]',
+          // Locker Room — Inter semibold
+          'locker:text-4xl locker:font-semibold locker:tracking-[-0.025em]',
+          // Athletic — Inter italic black uppercase
+          'athletic:text-5xl athletic:font-black athletic:italic athletic:uppercase athletic:leading-[0.92] athletic:tracking-[-0.04em]',
+        ].join(' ')}
+      >
+        {equipment.name}
+      </h1>
+      <p
+        className={[
+          'mt-2 text-sm text-muted',
+          'concrete:font-mono concrete:uppercase concrete:tracking-[0.1em] concrete:text-xs',
+          'athletic:font-mono athletic:uppercase athletic:tracking-[0.1em] athletic:text-xs',
+        ].join(' ')}
+      >
         {[equipment.machine_label, gymName].filter(Boolean).join(' · ')}
       </p>
     </header>
+  );
+}
+
+function Kicker({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <span
+      className={[
+        'block font-mono text-[10px] tracking-[0.2em] uppercase text-muted font-medium',
+        className,
+      ].join(' ')}
+    >
+      {children}
+    </span>
+  );
+}
+
+function SuggestedNum({ suggestion }: { suggestion: Suggestion }) {
+  if (suggestion.kind === 'first-time') {
+    return <p className="mt-1 text-lg text-muted-strong">{describeSuggestion(suggestion)}</p>;
+  }
+  return (
+    <div className="mt-1 flex items-baseline gap-3 flex-wrap">
+      <span
+        className={[
+          'font-display text-accent leading-none',
+          'halogen:text-5xl halogen:italic halogen:font-medium halogen:tracking-[-0.025em]',
+          'concrete:text-6xl concrete:font-black concrete:tracking-[-0.005em]',
+          'locker:text-4xl locker:font-semibold locker:tracking-[-0.025em]',
+          'athletic:text-6xl athletic:italic athletic:font-black athletic:tracking-[-0.04em]',
+        ].join(' ')}
+      >
+        {suggestion.weight} × {suggestion.reps}
+      </span>
+      <span className="text-xs text-muted">{describeSubLabel(suggestion)}</span>
+    </div>
+  );
+}
+
+function describeSubLabel(s: Suggestion): string {
+  if (s.kind === 'increase-weight') return 'Add five, hold reps. Chase the PR.';
+  if (s.kind === 'add-rep') return 'Same weight, push for one more.';
+  return '';
+}
+
+function PrimaryButton({
+  children,
+  disabled,
+  type = 'button',
+  large,
+}: {
+  children: React.ReactNode;
+  disabled?: boolean;
+  type?: 'submit' | 'button';
+  large?: boolean;
+}) {
+  return (
+    <button
+      type={type}
+      disabled={disabled}
+      className={[
+        'w-full rounded font-semibold transition disabled:opacity-50',
+        'bg-accent text-accent-ink hover:opacity-90',
+        large ? 'px-4 py-5 text-lg' : 'px-4 py-4 text-base',
+        // Theme-specific casing/style
+        'concrete:font-black concrete:uppercase concrete:tracking-[0.05em]',
+        'athletic:font-black athletic:italic athletic:uppercase athletic:tracking-[0.03em]',
+      ].join(' ')}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -444,14 +498,46 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="block text-sm text-neutral-400 mb-1">{label}</span>
+      <span className="block text-sm text-muted mb-1">{label}</span>
       <input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoFocus={autoFocus}
-        className="w-full px-4 py-4 text-lg rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-500 focus:outline-none"
+        className="w-full px-4 py-4 text-lg rounded bg-surface border border-line text-ink placeholder:text-muted focus:border-accent focus:outline-none"
+      />
+    </label>
+  );
+}
+
+function NumericInput({
+  label,
+  value,
+  onChange,
+  mode,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  mode: 'decimal' | 'numeric';
+}) {
+  return (
+    <label className="block">
+      <Kicker className="mb-1">{label}</Kicker>
+      <input
+        type="text"
+        inputMode={mode}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={mode === 'decimal' ? 'lbs' : 'reps'}
+        className={[
+          'w-full px-4 py-4 tabular-nums rounded bg-surface border border-line text-ink',
+          'focus:border-accent focus:outline-none placeholder:text-muted',
+          'text-2xl font-display',
+          'concrete:text-3xl concrete:font-black',
+          'athletic:font-black athletic:italic',
+        ].join(' ')}
       />
     </label>
   );
@@ -470,7 +556,7 @@ function PasscodeField({
 }) {
   return (
     <label className="block">
-      <span className="block text-sm text-neutral-400 mb-1">{label}</span>
+      <span className="block text-sm text-muted mb-1">{label}</span>
       <input
         type="password"
         inputMode="numeric"
@@ -481,7 +567,7 @@ function PasscodeField({
         onChange={(e) => onChange(e.target.value.replace(/\D/g, '').slice(0, 4))}
         placeholder="••••"
         autoFocus={autoFocus}
-        className="w-full px-4 py-4 text-2xl tracking-[0.4em] tabular-nums rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-500 focus:outline-none"
+        className="w-full px-4 py-4 text-2xl tracking-[0.4em] tabular-nums rounded bg-surface border border-line text-ink focus:border-accent focus:outline-none placeholder:text-muted"
       />
     </label>
   );

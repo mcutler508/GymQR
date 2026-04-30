@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A · Halogen Gym</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --line: #1f1f1f;
+    --line-soft: #161616;
+    --text: #ededed;
+    --muted: #737373;
+    --accent: #f5d547;
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'Inter', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.5;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .phone {
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 32px 28px 80px;
+  }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+  }
+  .brand {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .kicker .dot { color: var(--accent); }
+
+  .hero {
+    padding-bottom: 28px;
+    border-bottom: 1px solid var(--line);
+  }
+  .hero-name {
+    font-family: var(--serif);
+    font-size: 56px;
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    line-height: 1;
+    margin-top: 12px;
+  }
+  .hero-meta {
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .section { margin-top: 36px; }
+  .section + .section { margin-top: 32px; }
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .set-list { }
+  .set-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    font-variant-numeric: tabular-nums;
+    font-size: 18px;
+  }
+  .set-row + .set-row { border-top: 1px solid var(--line-soft); }
+  .set-row .reps { color: var(--muted); }
+
+  .suggested {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-top: 8px;
+  }
+  .suggested-num {
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 48px;
+    font-weight: 500;
+    letter-spacing: -0.025em;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .suggested-cap {
+    color: var(--muted);
+    font-size: 13px;
+    max-width: 200px;
+  }
+
+  .log-form { margin-top: 8px; }
+  .log-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .field label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .field input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--line);
+    color: var(--text);
+    font-family: var(--serif);
+    font-size: 40px;
+    font-weight: 500;
+    padding: 4px 0 12px;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .field input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .save-btn {
+    margin-top: 28px;
+    width: 100%;
+    background: var(--accent);
+    color: #0a0a0a;
+    border: none;
+    padding: 18px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .history-row {
+    display: flex;
+    gap: 20px;
+    padding: 12px 0;
+    font-size: 14px;
+  }
+  .history-row + .history-row { border-top: 1px solid var(--line-soft); }
+  .history-row .date {
+    font-family: var(--mono);
+    color: var(--muted);
+    width: 64px;
+    flex-shrink: 0;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding-top: 1px;
+  }
+  .history-row .sets {
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  .divider {
+    margin: 64px 0 24px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .divider::before, .divider::after {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 1px;
+    background: var(--line);
+    vertical-align: middle;
+    margin: 0 12px;
+  }
+
+  .owner-card {
+    padding: 24px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+  }
+  .owner-card .kicker { margin-bottom: 16px; }
+  .owner-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .owner-stat-num {
+    font-family: var(--serif);
+    font-size: 40px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .owner-stat-lbl {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 8px;
+  }
+
+  .back-link {
+    display: block;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    margin-top: 48px;
+    padding: 8px;
+  }
+  .back-link:hover { color: var(--text); }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <header class="topbar">
+      <span class="brand">RepTag</span>
+      <span class="kicker"><span class="dot">●</span>&nbsp;Logged in as Mike</span>
+    </header>
+
+    <section class="hero">
+      <div class="kicker">Last scanned · just now</div>
+      <h1 class="hero-name">Bench Press</h1>
+      <p class="hero-meta">Rack 02 · Iron House Gym</p>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <span class="kicker">Last time · Apr 28</span>
+      </div>
+      <div class="set-list">
+        <div class="set-row"><span>180 lbs</span><span class="reps">× 10</span></div>
+        <div class="set-row"><span>180 lbs</span><span class="reps">× 8</span></div>
+        <div class="set-row"><span>165 lbs</span><span class="reps">× 10</span></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <span class="kicker">Suggested today</span>
+      </div>
+      <div class="suggested">
+        <div class="suggested-num">185 × 8</div>
+        <p class="suggested-cap">Add five pounds, hold reps. Chase the PR.</p>
+      </div>
+    </section>
+
+    <section class="section log-form">
+      <div class="section-head">
+        <span class="kicker">Log a set</span>
+      </div>
+      <div class="log-row">
+        <div class="field">
+          <label>Weight</label>
+          <input type="text" inputmode="decimal" value="185">
+        </div>
+        <div class="field">
+          <label>Reps</label>
+          <input type="text" inputmode="numeric" value="8">
+        </div>
+      </div>
+      <button class="save-btn">Save set</button>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <span class="kicker">Recent history</span>
+      </div>
+      <div class="history-row"><span class="date">Apr 28</span><span class="sets">180 × 10, 180 × 8, 165 × 10</span></div>
+      <div class="history-row"><span class="date">Apr 25</span><span class="sets">175 × 10, 175 × 9, 160 × 10</span></div>
+      <div class="history-row"><span class="date">Apr 22</span><span class="sets">175 × 8, 165 × 10</span></div>
+    </section>
+
+    <div class="divider">Central command preview</div>
+
+    <div class="owner-card">
+      <div class="kicker">Today · Iron House</div>
+      <div class="owner-stats">
+        <div>
+          <div class="owner-stat-num">23</div>
+          <div class="owner-stat-lbl">Scans</div>
+        </div>
+        <div>
+          <div class="owner-stat-num">47</div>
+          <div class="owner-stat-lbl">Sets</div>
+        </div>
+        <div>
+          <div class="owner-stat-num">12</div>
+          <div class="owner-stat-lbl">Members</div>
+        </div>
+      </div>
+    </div>
+
+    <a class="back-link" href="index.html">← Back to directions</a>
+  </div>
+</body>
+</html>
