@@ -225,6 +225,33 @@ export async function updateEquipment(input: {
   return { ok: true };
 }
 
+/**
+ * Hard-deletes equipment. The `sets` and `scan_events` FKs cascade, so this
+ * also removes every member's logged history on this machine. RLS enforces
+ * ownership; the prior-fetch is just an existence check.
+ */
+export async function deleteEquipment(input: {
+  id: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await getServerClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { ok: false, error: 'Not signed in.' };
+
+  const { data: prior } = await supabase
+    .from('equipment')
+    .select('id')
+    .eq('id', input.id)
+    .maybeSingle();
+  if (!prior) return { ok: false, error: 'Equipment not found.' };
+
+  const { error } = await supabase.from('equipment').delete().eq('id', input.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/owner/equipment');
+  revalidatePath('/owner');
+  return { ok: true };
+}
+
 /* ---------------------------- branding actions ---------------------------- */
 
 const VALID_THEMES = ['halogen', 'concrete', 'locker-room', 'athletic'] as const;

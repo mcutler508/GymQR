@@ -2,7 +2,7 @@
 
 import { useState, useTransition, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateEquipment } from '../../../../actions';
+import { deleteEquipment, updateEquipment } from '../../../../actions';
 import { ExercisePicker } from '../../ExercisePicker';
 import type { EquipmentType } from '@/lib/supabase';
 
@@ -15,9 +15,10 @@ type Props = {
     equipmentType: EquipmentType;
     exercises: string[];
   };
+  setsCount: number;
 };
 
-export function EditEquipmentForm({ id, initial }: Props) {
+export function EditEquipmentForm({ id, initial, setsCount }: Props) {
   const router = useRouter();
   const [name, setName] = useState(initial.name);
   const [machineLabel, setMachineLabel] = useState(initial.machineLabel);
@@ -30,6 +31,23 @@ export function EditEquipmentForm({ id, initial }: Props) {
 
   const willConvertToMulti =
     initial.equipmentType === 'strength_single' && equipmentType === 'strength_multi';
+
+  function onDelete() {
+    const msg =
+      setsCount > 0
+        ? `Delete "${initial.name}"? This will also remove ${setsCount} logged ${
+            setsCount === 1 ? 'set' : 'sets'
+          } from member history. This cannot be undone.`
+        : `Delete "${initial.name}"? This cannot be undone.`;
+    if (!confirm(msg)) return;
+    setErr(null);
+    setSaved(false);
+    startTransition(async () => {
+      const res = await deleteEquipment({ id });
+      if (!res.ok) return setErr(res.error);
+      router.push('/owner/equipment');
+    });
+  }
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -138,6 +156,27 @@ export function EditEquipmentForm({ id, initial }: Props) {
       </div>
       {err && <p className="text-sm text-red-400">{err}</p>}
       {saved && <p className="text-sm text-emerald-400">Saved.</p>}
+
+      <div className="mt-8 pt-6 border-t border-neutral-900">
+        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-neutral-500 mb-2">
+          Danger zone
+        </p>
+        <p className="text-xs text-neutral-500 mb-3">
+          {setsCount > 0
+            ? `Deleting also removes ${setsCount} logged ${
+                setsCount === 1 ? 'set' : 'sets'
+              } from member history.`
+            : 'No sets logged yet on this machine.'}
+        </p>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={pending}
+          className="px-4 py-2 rounded-lg border border-red-900 text-red-300 text-sm hover:bg-red-950 hover:border-red-800 transition disabled:opacity-50"
+        >
+          Delete equipment
+        </button>
+      </div>
     </form>
   );
 }

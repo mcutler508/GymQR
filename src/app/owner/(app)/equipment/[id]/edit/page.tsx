@@ -30,6 +30,12 @@ export default async function EditEquipmentPage({
 
   if (!equipment) notFound();
 
+  // Count rows that would cascade-delete so the form can warn appropriately.
+  const { count: setsCount } = await supabase
+    .from('sets')
+    .select('id', { count: 'exact', head: true })
+    .eq('equipment_id', equipment.id);
+
   return (
     <div className="max-w-md">
       <h1 className="text-2xl font-semibold tracking-tight">Edit equipment</h1>
@@ -44,6 +50,7 @@ export default async function EditEquipmentPage({
             equipmentType: equipment.equipment_type,
             exercises: equipment.exercises ?? [],
           }}
+          setsCount={setsCount ?? 0}
         />
       </div>
     </div>
