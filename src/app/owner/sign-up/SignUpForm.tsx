@@ -3,6 +3,8 @@
 import { useState, useTransition, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { signUpOwner } from '../actions';
+import { Field } from '../_components/field';
+import { SubmitButton } from '../_components/submit-button';
 
 export function SignUpForm() {
   const router = useRouter();
@@ -16,9 +18,6 @@ export function SignUpForm() {
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErr(null);
-    // Capture the device's IANA timezone so the new gym defaults to the
-    // owner's local time rather than UTC. Owner can override later in
-    // /owner/branding.
     const timezone = (() => {
       try {
         return Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -40,66 +39,63 @@ export function SignUpForm() {
 
   if (needsConfirm) {
     return (
-      <div className="p-4 rounded-xl bg-neutral-900 border border-neutral-800 text-sm">
-        <p className="font-medium">Check your inbox</p>
-        <p className="mt-1 text-neutral-400">
-          We sent a confirmation link to <span className="text-neutral-200">{email}</span>. Click it,
-          then sign in to manage your gym.
+      <div className="border-l-2 border-white/40 pl-5">
+        <div className="font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500">
+          Almost there
+        </div>
+        <p className="mt-3 font-display text-2xl leading-tight text-white">
+          Check your inbox.
         </p>
-        <p className="mt-3 text-xs text-neutral-500">
-          (Email confirmation can be turned off in Supabase &rsaquo; Authentication &rsaquo; Providers
-          for a smoother demo.)
+        <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+          We sent a confirmation link to{' '}
+          <span className="text-white">{email}</span>. Click it, then sign in to walk
+          the floor.
+        </p>
+        <p className="mt-5 font-mono text-[10px] uppercase tracking-[0.22em] text-zinc-600">
+          Demo tip — disable email confirmation in Supabase &rsaquo; Auth &rsaquo; Providers.
         </p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <Field label="Email" type="email" value={email} onChange={setEmail} autoComplete="email" autoFocus />
-      <Field label="Password" type="password" value={password} onChange={setPassword} autoComplete="new-password" />
-      <Field label="Your gym's name" value={gymName} onChange={setGymName} placeholder="Iron House Gym" />
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full px-4 py-4 text-lg font-semibold rounded-lg bg-white text-black disabled:opacity-50"
-      >
-        {pending ? 'Creating…' : 'Create account'}
-      </button>
-      {err && <p className="text-sm text-red-400">{err}</p>}
-    </form>
-  );
-}
-
-function Field({
-  label,
-  type = 'text',
-  value,
-  onChange,
-  placeholder,
-  autoFocus,
-  autoComplete,
-}: {
-  label: string;
-  type?: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  autoFocus?: boolean;
-  autoComplete?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="block text-sm text-neutral-400 mb-1">{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        autoFocus={autoFocus}
-        autoComplete={autoComplete}
-        className="w-full px-4 py-3 rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-500 focus:outline-none"
+    <form onSubmit={onSubmit} className="space-y-7">
+      <Field
+        label="Email"
+        type="email"
+        value={email}
+        onChange={setEmail}
+        autoComplete="email"
+        autoFocus
       />
-    </label>
+      <Field
+        label="Password"
+        type="password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="new-password"
+      />
+      <Field
+        label="Gym name"
+        value={gymName}
+        onChange={setGymName}
+        placeholder="Iron House"
+      />
+
+      <div className="pt-2">
+        <SubmitButton pending={pending} pendingLabel="Opening doors…">
+          Create account
+        </SubmitButton>
+      </div>
+
+      {err && (
+        <p
+          className="border-l-2 border-white/40 pl-3 font-mono text-[11px] uppercase tracking-[0.18em] text-zinc-300"
+          role="alert"
+        >
+          {err}
+        </p>
+      )}
+    </form>
   );
 }

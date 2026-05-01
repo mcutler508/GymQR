@@ -1,23 +1,18 @@
+import { AuthShell } from '../_components/auth-shell';
 import { SignUpForm } from './SignUpForm';
 
 export default function SignUpPage() {
   return (
-    <main className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-md">
-        <h1 className="text-3xl font-semibold tracking-tight">Start your gym</h1>
-        <p className="mt-2 text-neutral-400 text-sm">
-          Create an owner account and name your gym. Members scan QR codes you generate.
-        </p>
-        <div className="mt-8">
-          <SignUpForm />
-        </div>
-        <p className="mt-6 text-xs text-neutral-500">
-          Already have an account?{' '}
-          <a href="/owner/sign-in" className="underline text-neutral-300">
-            Sign in
-          </a>
-        </p>
-      </div>
-    </main>
+    <AuthShell
+      kicker="Open your gym"
+      title="Name it,"
+      flourish="and we'll remember every rep."
+      lede="One account. One gym. A printable QR for every machine, and a quiet record of every member who ever set foot through the door."
+      footerPrompt="Already have a gym?"
+      footerHref="/owner/sign-in"
+      footerLabel="Sign in →"
+    >
+      <SignUpForm />
+    </AuthShell>
   );
 }

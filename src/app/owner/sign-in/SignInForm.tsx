@@ -3,6 +3,8 @@
 import { useState, useTransition, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { signInOwner } from '../actions';
+import { Field } from '../_components/field';
+import { SubmitButton } from '../_components/submit-button';
 
 export function SignInForm() {
   const router = useRouter();
@@ -23,36 +25,37 @@ export function SignInForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <label className="block">
-        <span className="block text-sm text-neutral-400 mb-1">Email</span>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
-          autoFocus
-          className="w-full px-4 py-3 rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-500 focus:outline-none"
-        />
-      </label>
-      <label className="block">
-        <span className="block text-sm text-neutral-400 mb-1">Password</span>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
-          className="w-full px-4 py-3 rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-500 focus:outline-none"
-        />
-      </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full px-4 py-4 text-lg font-semibold rounded-lg bg-white text-black disabled:opacity-50"
-      >
-        {pending ? 'Signing in…' : 'Sign in'}
-      </button>
-      {err && <p className="text-sm text-red-400">{err}</p>}
+    <form onSubmit={onSubmit} className="space-y-7">
+      <Field
+        label="Email"
+        type="email"
+        value={email}
+        onChange={setEmail}
+        autoComplete="email"
+        autoFocus
+      />
+      <Field
+        label="Password"
+        type="password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="current-password"
+      />
+
+      <div className="pt-2">
+        <SubmitButton pending={pending} pendingLabel="Signing in…">
+          Sign in
+        </SubmitButton>
+      </div>
+
+      {err && (
+        <p
+          className="border-l-2 border-white/40 pl-3 font-mono text-[11px] uppercase tracking-[0.18em] text-zinc-300"
+          role="alert"
+        >
+          {err}
+        </p>
+      )}
     </form>
   );
 }

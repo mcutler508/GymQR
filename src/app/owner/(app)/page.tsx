@@ -1,7 +1,10 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getServerClient } from '@/lib/supabase-server';
-import { startOfTodayUtc } from '@/lib/timezone';
+import { startOfTodayUtc, formatLocal } from '@/lib/timezone';
+import { EditorialHeader } from '../_components/editorial-header';
+import { StatCard } from '../_components/stat-card';
+import { ActionCard } from '../_components/action-card';
+import { MonoRule } from '../_components/mono-rule';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,16 +21,23 @@ export default async function OwnerDashboard() {
 
   if (!gym) {
     return (
-      <div className="text-center py-12">
-        <p className="text-neutral-400">
-          No gym is linked to this account. Contact support — this shouldn&apos;t happen after sign-up.
+      <div className="border-l-2 border-white/40 py-10 pl-6">
+        <div className="font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500">
+          Anomaly
+        </div>
+        <p className="mt-3 font-display text-2xl text-white">
+          No gym is linked to this account.
+        </p>
+        <p className="mt-2 max-w-md text-sm text-zinc-400">
+          This shouldn&rsquo;t happen after sign-up — contact support.
         </p>
       </div>
     );
   }
 
-  // "Today" = midnight in the gym's local timezone, expressed as UTC instant.
   const todayIso = startOfTodayUtc(gym.timezone).toISOString();
+  const nowIso = new Date().toISOString();
+  const dateStamp = formatLocal(nowIso, gym.timezone, 'EEEE · MMM d, yyyy');
 
   const [
     { count: equipmentCount },
@@ -50,64 +60,77 @@ export default async function OwnerDashboard() {
   ]);
 
   return (
-    <div>
-      <header className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight">{gym.name}</h1>
-        <p className="text-sm text-neutral-500 mt-1">central command</p>
-      </header>
+    <div className="space-y-16">
+      <EditorialHeader
+        kicker={`Vol. I  ·  ${gym.slug}`}
+        title={gym.name}
+        subtitle="Every scan, every set, every member — gathered quietly into one room."
+        meta={dateStamp}
+      />
 
-      <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-3">Today</h2>
-      <div className="grid grid-cols-2 gap-3 mb-8">
-        <Stat label="Scans" value={todayScans ?? 0} />
-        <Stat label="Sets logged" value={todaySets ?? 0} />
-      </div>
+      {/* ── Today ─────────────────────────────────────────── */}
+      <section>
+        <MonoRule>The day so far</MonoRule>
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <StatCard label="Scans today" value={todayScans ?? 0} />
+          <StatCard label="Sets logged today" value={todaySets ?? 0} />
+        </div>
+      </section>
 
-      <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-3">All-time</h2>
-      <div className="grid grid-cols-2 gap-3 mb-10">
-        <Stat label="Equipment" value={equipmentCount ?? 0} href="/owner/equipment" />
-        <Stat label="Members" value={memberCount ?? 0} href="/owner/members" />
-      </div>
+      {/* ── All-time ──────────────────────────────────────── */}
+      <section>
+        <MonoRule>The floor</MonoRule>
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <StatCard
+            label="Equipment"
+            value={equipmentCount ?? 0}
+            href="/owner/equipment"
+            emphasis="secondary"
+          />
+          <StatCard
+            label="Members"
+            value={memberCount ?? 0}
+            href="/owner/members"
+            emphasis="secondary"
+          />
+        </div>
+      </section>
 
-      <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-3">Quick actions</h2>
-      <div className="space-y-2">
-        <Link
-          href="/owner/equipment/new"
-          className="block p-4 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700"
-        >
-          <p className="font-medium">Add a piece of equipment</p>
-          <p className="text-sm text-neutral-400 mt-1">
-            Generates a QR code you can print and stick on the machine.
-          </p>
-        </Link>
-        <Link
-          href="/owner/equipment"
-          className="block p-4 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700"
-        >
-          <p className="font-medium">Manage equipment</p>
-          <p className="text-sm text-neutral-400 mt-1">
-            View, edit, deactivate, or reprint stickers.
-          </p>
-        </Link>
-        <Link
-          href="/owner/members"
-          className="block p-4 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700"
-        >
-          <p className="font-medium">Members</p>
-          <p className="text-sm text-neutral-400 mt-1">
-            See who&apos;s active and reset passcodes when needed.
-          </p>
-        </Link>
-      </div>
+      {/* ── Quick actions ─────────────────────────────────── */}
+      <section>
+        <MonoRule>Move the room</MonoRule>
+        <div className="mt-2 border-t border-white/10">
+          <ActionCard
+            index="01"
+            title="Add a piece of equipment"
+            blurb="Generates a QR code you can print and stick on the machine. Members scan it once and the gym remembers them forever."
+            href="/owner/equipment/new"
+          />
+          <ActionCard
+            index="02"
+            title="Manage the floor"
+            blurb="View, edit, deactivate, or reprint stickers. Every machine carries its own usage record."
+            href="/owner/equipment"
+          />
+          <ActionCard
+            index="03"
+            title="The roster"
+            blurb="See who’s active, reset passcodes, and read the aggregate pulse of your gym — never the individual lifts."
+            href="/owner/members"
+          />
+          <ActionCard
+            index="04"
+            title="Settings & branding"
+            blurb="Theme, timezone, gym slug. Quiet controls for the room you’ve built."
+            href="/owner/branding"
+          />
+        </div>
+      </section>
+
+      <footer className="flex items-center justify-between border-t border-white/10 pt-6 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">
+        <span>RepTag &middot; Central Command</span>
+        <span>{dateStamp}</span>
+      </footer>
     </div>
   );
-}
-
-function Stat({ label, value, href }: { label: string; value: number; href?: string }) {
-  const inner = (
-    <div className="p-5 rounded-xl bg-neutral-900 border border-neutral-800 hover:border-neutral-700 transition">
-      <p className="text-xs uppercase tracking-wider text-neutral-500">{label}</p>
-      <p className="mt-2 text-3xl font-semibold tabular-nums">{value}</p>
-    </div>
-  );
-  return href ? <Link href={href}>{inner}</Link> : inner;
 }
