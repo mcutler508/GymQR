@@ -111,12 +111,12 @@ export async function createEquipment(input: {
       ? input.equipmentType
       : 'strength_single';
 
-  // Single-type equipment doesn't carry an exercise list (the equipment IS the
-  // exercise). Force empty regardless of what the client sent.
+  // Only multi-exercise equipment carries a list. Single-exercise = the
+  // equipment IS the exercise; cardio = no per-set exercise tagging in v1.
   const exercises =
-    equipmentType === 'strength_single'
-      ? []
-      : normalizeExerciseList(input.exercises ?? []);
+    equipmentType === 'strength_multi'
+      ? normalizeExerciseList(input.exercises ?? [])
+      : [];
 
   if (equipmentType === 'strength_multi' && exercises.length === 0) {
     return { ok: false, error: 'Add at least one exercise for a multi-exercise machine.' };
@@ -181,9 +181,9 @@ export async function updateEquipment(input: {
       : prior.equipment_type;
 
   let exercises =
-    equipmentType === 'strength_single'
-      ? []
-      : normalizeExerciseList(input.exercises ?? []);
+    equipmentType === 'strength_multi'
+      ? normalizeExerciseList(input.exercises ?? [])
+      : [];
 
   // Single → Multi conversion: keep the prior name as a default exercise so
   // historical sets (auto-tagged below) still show up under a chip the member

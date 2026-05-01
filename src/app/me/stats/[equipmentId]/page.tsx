@@ -3,7 +3,15 @@ import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { lifetimeTotals, prFor, progressionFor } from '@/lib/stats';
+import {
+  cardioBest,
+  cardioProgressionFor,
+  cardioTotals,
+  formatDuration,
+  formatMiles,
+} from '@/lib/cardio';
 import { ProgressionChart } from './ProgressionChart';
+import { CardioProgressionChart } from './CardioProgressionChart';
 import type { GymTheme } from '@/app/scan/[qrSlug]/page';
 import type { EquipmentType } from '@/lib/supabase';
 
@@ -14,6 +22,8 @@ const COOKIE_NAME = 'reptag_member_id';
 type SetRow = {
   weight: number | null;
   reps: number | null;
+  duration_seconds: number | null;
+  distance_meters: number | null;
   logged_at: string;
   exercise_name: string | null;
 };
@@ -66,6 +76,7 @@ export default async function MachineStatsPage({
   const theme: GymTheme = equipment.gyms?.theme ?? 'halogen';
   const timezone = equipment.gyms?.timezone ?? 'UTC';
   const isMulti = equipment.equipment_type === 'strength_multi';
+  const isCardio = equipment.equipment_type === 'cardio';
 
   // Resolve the active exercise tag (if any) and validate against the
   // equipment's configured list, case-insensitively.
@@ -78,7 +89,7 @@ export default async function MachineStatsPage({
 
   const { data: setsRaw } = await supabase
     .from('sets')
-    .select('weight, reps, logged_at, exercise_name')
+    .select('weight, reps, duration_seconds, distance_meters, logged_at, exercise_name')
     .eq('member_id', memberId)
     .eq('equipment_id', equipmentId)
     .order('logged_at', { ascending: true })
@@ -92,6 +103,9 @@ export default async function MachineStatsPage({
   const totals = lifetimeTotals(sets, timezone);
   const pr = prFor(sets);
   const progression = progressionFor(sets, timezone);
+  const cBest = isCardio ? cardioBest(sets) : null;
+  const cTotals = isCardio ? cardioTotals(sets) : null;
+  const cProgression = isCardio ? cardioProgressionFor(sets, timezone) : [];
 
   return (
     <div data-theme={theme} className="min-h-screen bg-canvas text-ink">
@@ -140,23 +154,81 @@ export default async function MachineStatsPage({
           </section>
         )}
 
-        <section className="grid grid-cols-3 gap-3 mb-6">
-          <Stat
-            label="PR"
-            value={pr ? `${fmtWeight(pr.weight)} × ${pr.reps}` : '—'}
-            sub={pr ? new Date(pr.logged_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'no sets yet'}
-            accent
-          />
-          <Stat label="Sets" value={String(totals.totalSets)} sub="all time" />
-          <Stat label="Volume" value={fmtVol(totals.totalVolume)} sub="lbs moved" />
-        </section>
+        {isCardio && cBest && cTotals ? (
+          <>
+            <section className="grid grid-cols-3 gap-3 mb-6">
+              <Stat
+                label="Longest"
+                value={
+                  cBest.longestDurationSeconds > 0
+                    ? formatDuration(cBest.longestDurationSeconds)
+                    : '—'
+                }
+                sub={
+                  cBest.longestDurationLoggedAt
+                    ? new Date(cBest.longestDurationLoggedAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : 'no sessions yet'
+                }
+                accent
+              />
+              <Stat
+                label="Farthest"
+                value={
+                  cBest.longestDistanceMeters > 0
+                    ? `${formatMiles(cBest.longestDistanceMeters)} mi`
+                    : '—'
+                }
+                sub={
+                  cBest.longestDistanceLoggedAt
+                    ? new Date(cBest.longestDistanceLoggedAt).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : 'no distance yet'
+                }
+              />
+              <Stat
+                label="Total time"
+                value={
+                  cTotals.totalDurationSeconds > 0
+                    ? formatDuration(cTotals.totalDurationSeconds)
+                    : '—'
+                }
+                sub={`${cTotals.totalSessions} ${cTotals.totalSessions === 1 ? 'session' : 'sessions'}`}
+              />
+            </section>
 
-        <section className="p-4 rounded-card bg-surface border border-line">
-          <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-2">
-            Working set over time
-          </p>
-          <ProgressionChart points={progression} />
-        </section>
+            <section className="p-4 rounded-card bg-surface border border-line">
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-2">
+                Duration over time
+              </p>
+              <CardioProgressionChart points={cProgression} />
+            </section>
+          </>
+        ) : (
+          <>
+            <section className="grid grid-cols-3 gap-3 mb-6">
+              <Stat
+                label="PR"
+                value={pr ? `${fmtWeight(pr.weight)} × ${pr.reps}` : '—'}
+                sub={pr ? new Date(pr.logged_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'no sets yet'}
+                accent
+              />
+              <Stat label="Sets" value={String(totals.totalSets)} sub="all time" />
+              <Stat label="Volume" value={fmtVol(totals.totalVolume)} sub="lbs moved" />
+            </section>
+
+            <section className="p-4 rounded-card bg-surface border border-line">
+              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-2">
+                Working set over time
+              </p>
+              <ProgressionChart points={progression} />
+            </section>
+          </>
+        )}
 
         <p className="mt-8">
           <Link

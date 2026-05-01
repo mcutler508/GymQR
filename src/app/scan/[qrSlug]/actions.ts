@@ -66,22 +66,21 @@ export async function setPasscodeAction(input: { passcode: string }): Promise<vo
 export async function logSet(input: {
   equipmentId: string;
   gymId: string;
-  weight: number;
-  reps: number;
+  weight?: number | null;
+  reps?: number | null;
   rpe?: number | null;
   note?: string | null;
   exerciseName?: string | null;
+  durationSeconds?: number | null;
+  distanceMeters?: number | null;
   qrSlug: string;
 }): Promise<void> {
   const store = await cookies();
   const memberId = store.get(COOKIE_NAME)?.value;
   if (!memberId) throw new Error('Not identified');
 
-  if (!Number.isFinite(input.weight) || input.weight <= 0) throw new Error('Weight must be > 0');
-  if (!Number.isInteger(input.reps) || input.reps <= 0) throw new Error('Reps must be a positive integer');
-
-  // Re-fetch the equipment row so we can validate the exercise tag against the
-  // server-side allowlist. Don't trust whatever the client posted.
+  // Re-fetch the equipment row so we can validate the inputs against the
+  // server-side type. Don't trust whatever the client posted.
   const { data: eq } = await supabase
     .from('equipment')
     .select('id, equipment_type, exercises')
@@ -93,6 +92,39 @@ export async function logSet(input: {
     }>();
   if (!eq) throw new Error('Equipment not found');
 
+  if (eq.equipment_type === 'cardio') {
+    const dur = Number(input.durationSeconds);
+    if (!Number.isFinite(dur) || dur <= 0) throw new Error('Enter a duration.');
+    let distance: number | null = null;
+    if (input.distanceMeters != null && input.distanceMeters !== 0) {
+      const m = Number(input.distanceMeters);
+      if (!Number.isFinite(m) || m < 0) throw new Error('Distance must be a positive number.');
+      distance = m;
+    }
+
+    const { error } = await supabase.from('sets').insert({
+      member_id: memberId,
+      equipment_id: input.equipmentId,
+      gym_id: input.gymId,
+      weight: null,
+      reps: null,
+      rpe: null,
+      note: input.note ?? null,
+      exercise_name: null,
+      duration_seconds: Math.round(dur),
+      distance_meters: distance,
+    });
+    if (error) throw new Error(error.message);
+    revalidatePath(`/scan/${input.qrSlug}`);
+    return;
+  }
+
+  // Strength path (single or multi).
+  const w = Number(input.weight);
+  const r = Number(input.reps);
+  if (!Number.isFinite(w) || w <= 0) throw new Error('Weight must be > 0');
+  if (!Number.isInteger(r) || r <= 0) throw new Error('Reps must be a positive integer');
+
   let exerciseName: string | null = null;
   if (eq.equipment_type === 'strength_multi') {
     const candidate = (input.exerciseName ?? '').trim();
@@ -103,15 +135,14 @@ export async function logSet(input: {
     if (!match) throw new Error('That exercise isn’t configured for this machine.');
     exerciseName = match;
   }
-  // strength_single: ignore any client-sent exerciseName; the equipment IS the
-  // exercise. cardio: not reachable from the UI yet.
+  // strength_single: ignore any client-sent exerciseName.
 
   const { error } = await supabase.from('sets').insert({
     member_id: memberId,
     equipment_id: input.equipmentId,
     gym_id: input.gymId,
-    weight: input.weight,
-    reps: input.reps,
+    weight: w,
+    reps: r,
     rpe: input.rpe ?? null,
     note: input.note ?? null,
     exercise_name: exerciseName,

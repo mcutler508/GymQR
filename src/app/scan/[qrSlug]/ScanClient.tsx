@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Equipment, Set } from '@/lib/supabase';
 import { describeSuggestion, suggestTarget, type Suggestion } from '@/lib/suggested-target';
+import {
+  describeCardioSuggestion,
+  formatDuration,
+  formatMiles,
+  metersToMiles,
+  milesToMeters,
+  suggestCardioTarget,
+  type CardioSuggestion,
+} from '@/lib/cardio';
 import { groupIntoSessions } from '@/lib/stats';
 import { formatLocal } from '@/lib/timezone';
 import {
@@ -33,6 +42,17 @@ export function ScanClient(props: Props) {
   }
   if (props.needsPasscode) {
     return <SetPasscodePrompt equipment={props.equipment} gymName={props.gymName} memberName={props.memberName} />;
+  }
+  if (props.equipment.equipment_type === 'cardio') {
+    return (
+      <CardioLogView
+        equipment={props.equipment}
+        gymName={props.gymName}
+        gymTimezone={props.gymTimezone}
+        memberName={props.memberName}
+        recentSets={props.recentSets}
+      />
+    );
   }
   return (
     <LogView
@@ -476,6 +496,300 @@ function LogView({
         </button>
       </p>
     </main>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Cardio log view                                                     */
+/* ------------------------------------------------------------------ */
+
+function CardioLogView({
+  equipment,
+  gymName,
+  gymTimezone,
+  memberName,
+  recentSets,
+}: {
+  equipment: Equipment;
+  gymName: string;
+  gymTimezone: string;
+  memberName: string | null;
+  recentSets: Set[];
+}) {
+  const router = useRouter();
+
+  const cardioSets = useMemo<Set[]>(
+    () => recentSets.filter((s) => s.duration_seconds != null),
+    [recentSets],
+  );
+  const sessions = useMemo<Session[]>(
+    () => groupIntoSessions(cardioSets, 2),
+    [cardioSets],
+  );
+  const lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
+  const recentSessions = useMemo<Session[]>(() => [...sessions].reverse(), [sessions]);
+
+  const suggestion = useMemo<CardioSuggestion>(() => {
+    const last = cardioSets[0];
+    if (!last) return suggestCardioTarget(undefined);
+    return suggestCardioTarget({
+      duration_seconds: last.duration_seconds,
+      distance_meters: last.distance_meters,
+    });
+  }, [cardioSets]);
+
+  // Pre-fill duration mm/ss + distance from the suggestion.
+  const initialMin =
+    suggestion.kind === 'add-time'
+      ? String(Math.floor(suggestion.durationSeconds / 60))
+      : '';
+  const initialSec =
+    suggestion.kind === 'add-time'
+      ? String(suggestion.durationSeconds % 60).padStart(2, '0')
+      : '';
+  const initialMiles =
+    suggestion.kind === 'add-time' && suggestion.distanceMeters != null
+      ? metersToMiles(suggestion.distanceMeters).toFixed(2)
+      : '';
+
+  const [minutes, setMinutes] = useState<string>(initialMin);
+  const [seconds, setSeconds] = useState<string>(initialSec);
+  const [miles, setMiles] = useState<string>(initialMiles);
+  const [pending, startTransition] = useTransition();
+  const [err, setErr] = useState<string | null>(null);
+  const [justLogged, setJustLogged] = useState(false);
+
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setErr(null);
+    const m = minutes === '' ? 0 : Number(minutes);
+    const s = seconds === '' ? 0 : Number(seconds);
+    if (!Number.isFinite(m) || m < 0 || !Number.isInteger(m)) {
+      return setErr('Enter whole minutes.');
+    }
+    if (!Number.isFinite(s) || s < 0 || s >= 60 || !Number.isInteger(s)) {
+      return setErr('Seconds must be 0–59.');
+    }
+    const total = m * 60 + s;
+    if (total <= 0) return setErr('Enter a duration greater than zero.');
+
+    let distanceMeters: number | null = null;
+    if (miles.trim() !== '') {
+      const mi = Number(miles);
+      if (!Number.isFinite(mi) || mi < 0) return setErr('Enter a valid distance.');
+      if (mi > 0) distanceMeters = milesToMeters(mi);
+    }
+
+    startTransition(async () => {
+      try {
+        await logSet({
+          equipmentId: equipment.id,
+          gymId: equipment.gym_id,
+          durationSeconds: total,
+          distanceMeters,
+          qrSlug: equipment.qr_slug,
+        });
+        setJustLogged(true);
+        router.refresh();
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : 'Could not save session');
+      }
+    });
+  }
+
+  function onSignOut() {
+    startTransition(async () => {
+      await signOutMember();
+      try {
+        localStorage.removeItem('reptag_member_id');
+        localStorage.removeItem('reptag_member_name');
+      } catch {
+        /* */
+      }
+      router.refresh();
+    });
+  }
+
+  return (
+    <main className="p-4 max-w-md mx-auto pb-32">
+      <Header equipment={equipment} gymName={gymName} />
+
+      <section className="mt-6 p-4 rounded-card bg-surface border border-line">
+        <div className="flex items-baseline justify-between gap-2">
+          <Kicker>Last Time</Kicker>
+          {lastSession && (
+            <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
+              {formatLocal(lastSession.startedAt, gymTimezone, 'MMM d · h:mm a')}
+            </span>
+          )}
+        </div>
+        {lastSession ? (
+          <ul className="mt-2 space-y-1 text-lg">
+            {lastSession.sets.map((s) => (
+              <li key={s.id} className="tabular-nums">
+                {fmtCardio(s)}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-muted text-sm">No history on this machine yet.</p>
+        )}
+      </section>
+
+      <section className="mt-3 p-4 rounded-card bg-surface border border-line">
+        <Kicker>Suggested Today</Kicker>
+        <CardioSuggestionDisplay suggestion={suggestion} />
+      </section>
+
+      <form onSubmit={onSubmit} className="mt-6 space-y-3">
+        <div>
+          <Kicker className="mb-1">Duration</Kicker>
+          <div className="flex items-center gap-2">
+            <NumericInputBare
+              value={minutes}
+              onChange={setMinutes}
+              placeholder="min"
+              mode="numeric"
+              ariaLabel="Minutes"
+            />
+            <span className="text-2xl font-display tabular-nums text-muted">:</span>
+            <NumericInputBare
+              value={seconds}
+              onChange={setSeconds}
+              placeholder="sec"
+              mode="numeric"
+              ariaLabel="Seconds"
+            />
+          </div>
+        </div>
+        <div>
+          <Kicker className="mb-1">Distance (optional)</Kicker>
+          <div className="flex items-center gap-2">
+            <NumericInputBare
+              value={miles}
+              onChange={setMiles}
+              placeholder="0.0"
+              mode="decimal"
+              ariaLabel="Distance in miles"
+            />
+            <span className="text-sm text-muted">mi</span>
+          </div>
+        </div>
+        <PrimaryButton type="submit" disabled={pending} large>
+          {pending ? 'Saving…' : 'Save Session'}
+        </PrimaryButton>
+        {err && <p className="text-sm text-red-400">{err}</p>}
+        {justLogged && !pending && !err && (
+          <p className="text-sm text-emerald-400">Session saved.</p>
+        )}
+      </form>
+
+      <section className="mt-6 flex gap-3">
+        <Link
+          href="/scan"
+          className="flex-1 px-4 py-3 rounded bg-surface border border-line text-center text-sm font-medium hover:border-muted transition"
+        >
+          Scan another machine
+        </Link>
+        <Link
+          href="/me/stats"
+          className="flex-1 px-4 py-3 rounded bg-surface border border-line text-center text-sm font-medium hover:border-muted transition"
+        >
+          My Stats
+        </Link>
+      </section>
+
+      {recentSessions.length > 0 && (
+        <section className="mt-8">
+          <Kicker className="mb-2">Recent History</Kicker>
+          <ul className="space-y-2">
+            {recentSessions.map((session) => (
+              <li key={session.startedAt} className="text-sm">
+                <span className="text-muted">
+                  {formatLocal(session.startedAt, gymTimezone, 'MMM d · h:mm a')}
+                </span>{' '}
+                <span className="tabular-nums">
+                  {session.sets.map((s) => fmtCardio(s)).join(', ')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <p className="mt-8 text-xs text-muted text-center">
+        Logged as {memberName ?? 'you'} ·{' '}
+        <button type="button" onClick={onSignOut} className="underline">
+          sign out
+        </button>
+      </p>
+    </main>
+  );
+}
+
+function fmtCardio(s: Set): string {
+  if (s.duration_seconds == null) return '—';
+  const dur = formatDuration(Number(s.duration_seconds));
+  if (s.distance_meters == null) return dur;
+  return `${dur} · ${formatMiles(Number(s.distance_meters))} mi`;
+}
+
+function CardioSuggestionDisplay({ suggestion }: { suggestion: CardioSuggestion }) {
+  if (suggestion.kind === 'first-time') {
+    return <p className="mt-1 text-lg text-muted-strong">{describeCardioSuggestion(suggestion)}</p>;
+  }
+  return (
+    <div className="mt-1 flex items-baseline gap-3 flex-wrap">
+      <span
+        className={[
+          'font-display text-accent leading-none tabular-nums',
+          'halogen:text-5xl halogen:italic halogen:font-medium halogen:tracking-[-0.025em]',
+          'concrete:text-6xl concrete:font-black concrete:tracking-[-0.005em]',
+          'locker:text-4xl locker:font-semibold locker:tracking-[-0.025em]',
+          'athletic:text-6xl athletic:italic athletic:font-black athletic:tracking-[-0.04em]',
+        ].join(' ')}
+      >
+        {formatDuration(suggestion.durationSeconds)}
+      </span>
+      {suggestion.distanceMeters != null && (
+        <span className="text-sm text-muted">
+          {formatMiles(suggestion.distanceMeters)} mi
+        </span>
+      )}
+      <span className="text-xs text-muted">Hold the pace, push the time.</span>
+    </div>
+  );
+}
+
+function NumericInputBare({
+  value,
+  onChange,
+  placeholder,
+  mode,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  mode: 'decimal' | 'numeric';
+  ariaLabel: string;
+}) {
+  return (
+    <input
+      type="text"
+      inputMode={mode}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      aria-label={ariaLabel}
+      className={[
+        'flex-1 px-4 py-4 tabular-nums rounded bg-surface border border-line text-ink',
+        'focus:border-accent focus:outline-none placeholder:text-muted',
+        'text-2xl font-display',
+        'concrete:text-3xl concrete:font-black',
+        'athletic:font-black athletic:italic',
+      ].join(' ')}
+    />
   );
 }
 

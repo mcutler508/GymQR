@@ -6,13 +6,11 @@ import { createEquipment } from '../../../actions';
 import { ExercisePicker } from '../ExercisePicker';
 import type { EquipmentType } from '@/lib/supabase';
 
-type FormType = Exclude<EquipmentType, 'cardio'>;
-
 export function NewEquipmentForm() {
   const router = useRouter();
   const [name, setName] = useState('');
   const [machineLabel, setMachineLabel] = useState('');
-  const [equipmentType, setEquipmentType] = useState<FormType>('strength_single');
+  const [equipmentType, setEquipmentType] = useState<EquipmentType>('strength_single');
   const [exercises, setExercises] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -77,9 +75,12 @@ export function NewEquipmentForm() {
           label="Multi-exercise"
           hint="Members pick the exercise on scan (cable stack, dumbbell rack, multi-purpose bench)."
         />
-        <p className="text-xs text-neutral-600 pt-1">
-          Cardio equipment support is coming soon.
-        </p>
+        <TypeRadio
+          checked={equipmentType === 'cardio'}
+          onSelect={() => setEquipmentType('cardio')}
+          label="Cardio"
+          hint="Treadmill, bike, rower, climber. Members log duration and optional distance."
+        />
       </fieldset>
 
       {equipmentType === 'strength_multi' && (

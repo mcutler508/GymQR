@@ -6,8 +6,6 @@ import { updateEquipment } from '../../../../actions';
 import { ExercisePicker } from '../../ExercisePicker';
 import type { EquipmentType } from '@/lib/supabase';
 
-type FormType = Exclude<EquipmentType, 'cardio'>;
-
 type Props = {
   id: string;
   initial: {
@@ -24,11 +22,7 @@ export function EditEquipmentForm({ id, initial }: Props) {
   const [name, setName] = useState(initial.name);
   const [machineLabel, setMachineLabel] = useState(initial.machineLabel);
   const [status, setStatus] = useState<'active' | 'inactive'>(initial.status);
-  // Cardio is read-only in the picker for now: if a row is somehow already
-  // cardio, surface it but don't let owners select it as a new value yet.
-  const [equipmentType, setEquipmentType] = useState<FormType>(
-    initial.equipmentType === 'cardio' ? 'strength_single' : initial.equipmentType,
-  );
+  const [equipmentType, setEquipmentType] = useState<EquipmentType>(initial.equipmentType);
   const [exercises, setExercises] = useState<string[]>(initial.exercises);
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
@@ -94,6 +88,12 @@ export function EditEquipmentForm({ id, initial }: Props) {
           onSelect={() => setEquipmentType('strength_multi')}
           label="Multi-exercise"
           hint="Members pick the exercise on scan."
+        />
+        <TypeRadio
+          checked={equipmentType === 'cardio'}
+          onSelect={() => setEquipmentType('cardio')}
+          label="Cardio"
+          hint="Treadmill, bike, rower, climber. Members log duration and optional distance."
         />
       </fieldset>
 

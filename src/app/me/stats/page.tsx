@@ -10,6 +10,7 @@ import {
   type ProgressionPoint,
   type PR,
 } from '@/lib/stats';
+import { cardioBest, formatDuration, formatMiles, type CardioBest } from '@/lib/cardio';
 import { Sparkline } from './Sparkline';
 import type { GymTheme } from '@/app/scan/[qrSlug]/page';
 import type { EquipmentType } from '@/lib/supabase';
@@ -21,6 +22,8 @@ const COOKIE_NAME = 'reptag_member_id';
 type SetRow = {
   weight: number | null;
   reps: number | null;
+  duration_seconds: number | null;
+  distance_meters: number | null;
   logged_at: string;
   equipment_id: string;
   exercise_name: string | null;
@@ -48,7 +51,8 @@ type MachineStat = {
   pr: PR;
   progression: ProgressionPoint[];
   lastLogged: string | null;
-  exercises: ExerciseStat[]; // only populated for multi-type
+  exercises: ExerciseStat[]; // only populated for strength_multi
+  cardio: CardioBest | null; // only populated for cardio
 };
 
 export default async function MyStatsPage() {
@@ -79,7 +83,7 @@ export default async function MyStatsPage() {
   const { data: setsRaw } = await supabase
     .from('sets')
     .select(
-      'weight, reps, logged_at, equipment_id, exercise_name, equipment(id, name, machine_label, equipment_type)',
+      'weight, reps, duration_seconds, distance_meters, logged_at, equipment_id, exercise_name, equipment(id, name, machine_label, equipment_type)',
     )
     .eq('member_id', memberId)
     .order('logged_at', { ascending: false })
@@ -117,6 +121,8 @@ export default async function MyStatsPage() {
       const progression = progressionFor(group.sets, timezone);
 
       let exercises: ExerciseStat[] = [];
+      let cardio: CardioBest | null = null;
+
       if (group.equipmentType === 'strength_multi') {
         const byEx = new Map<string, SetRow[]>();
         for (const s of group.sets) {
@@ -136,6 +142,8 @@ export default async function MyStatsPage() {
             if (!b.lastLogged) return -1;
             return a.lastLogged < b.lastLogged ? 1 : -1;
           });
+      } else if (group.equipmentType === 'cardio') {
+        cardio = cardioBest(group.sets);
       }
 
       return {
@@ -148,6 +156,7 @@ export default async function MyStatsPage() {
         progression,
         lastLogged: group.sets[0]?.logged_at ?? null,
         exercises,
+        cardio,
       };
     })
     .sort((a, b) => (a.lastLogged && b.lastLogged ? (a.lastLogged < b.lastLogged ? 1 : -1) : 0));
@@ -189,7 +198,9 @@ export default async function MyStatsPage() {
           <ul className="space-y-3">
             {machines.map((m) => (
               <li key={m.id}>
-                {m.equipmentType === 'strength_multi' ? (
+                {m.equipmentType === 'cardio' ? (
+                  <CardioMachineCard machine={m} />
+                ) : m.equipmentType === 'strength_multi' ? (
                   <MultiMachineCard machine={m} />
                 ) : (
                   <SingleMachineCard machine={m} />
@@ -231,6 +242,48 @@ function SingleMachineCard({ machine }: { machine: MachineStat }) {
           )}
         </div>
         <Sparkline points={machine.progression.map((p) => p.weight)} />
+      </div>
+    </Link>
+  );
+}
+
+function CardioMachineCard({ machine }: { machine: MachineStat }) {
+  const c = machine.cardio;
+  return (
+    <Link
+      href={`/me/stats/${machine.id}`}
+      className="block p-4 rounded-card bg-surface border border-line hover:border-muted transition"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-medium">
+            {machine.name}
+            <span className="ml-2 text-[10px] font-mono uppercase tracking-[0.15em] px-1.5 py-0.5 rounded bg-line text-muted-strong align-middle">
+              Cardio
+            </span>
+          </p>
+          <p className="text-xs text-muted">
+            {[machine.label, `${machine.setCount} ${machine.setCount === 1 ? 'session' : 'sessions'}`]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+          {c && c.longestDurationSeconds > 0 && (
+            <p className="text-sm text-muted-strong mt-2 tabular-nums">
+              Longest{' '}
+              <span className="font-semibold text-ink">
+                {formatDuration(c.longestDurationSeconds)}
+              </span>
+              {c.longestDistanceMeters > 0 && (
+                <>
+                  {' · '}
+                  <span className="font-semibold text-ink">
+                    {formatMiles(c.longestDistanceMeters)} mi
+                  </span>
+                </>
+              )}
+            </p>
+          )}
+        </div>
       </div>
     </Link>
   );
