@@ -23,7 +23,7 @@ export default async function EditEquipmentPage({
 
   const { data: equipment } = await supabase
     .from('equipment')
-    .select('id, name, machine_label, qr_slug, status, gym_id')
+    .select('id, name, machine_label, qr_slug, status, gym_id, equipment_type, exercises')
     .eq('id', id)
     .eq('gym_id', gym.id)
     .maybeSingle();
@@ -41,6 +41,8 @@ export default async function EditEquipmentPage({
             name: equipment.name,
             machineLabel: equipment.machine_label ?? '',
             status: equipment.status,
+            equipmentType: equipment.equipment_type,
+            exercises: equipment.exercises ?? [],
           }}
         />
       </div>

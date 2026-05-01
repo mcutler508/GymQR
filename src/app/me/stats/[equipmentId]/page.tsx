@@ -5,23 +5,28 @@ import { supabase } from '@/lib/supabase';
 import { lifetimeTotals, prFor, progressionFor } from '@/lib/stats';
 import { ProgressionChart } from './ProgressionChart';
 import type { GymTheme } from '@/app/scan/[qrSlug]/page';
+import type { EquipmentType } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
 const COOKIE_NAME = 'reptag_member_id';
 
 type SetRow = {
-  weight: number;
-  reps: number;
+  weight: number | null;
+  reps: number | null;
   logged_at: string;
+  exercise_name: string | null;
 };
 
 export default async function MachineStatsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ equipmentId: string }>;
+  searchParams: Promise<{ exercise?: string }>;
 }) {
   const { equipmentId } = await params;
+  const { exercise: exerciseParam } = await searchParams;
 
   const store = await cookies();
   const memberId = store.get(COOKIE_NAME)?.value;
@@ -39,35 +44,51 @@ export default async function MachineStatsPage({
     );
   }
 
-  const [equipmentRes] = await Promise.all([
-    supabase
-      .from('equipment')
-      .select('id, name, machine_label, qr_slug, gym_id, gyms(theme, timezone)')
-      .eq('id', equipmentId)
-      .maybeSingle<{
-        id: string;
-        name: string;
-        machine_label: string | null;
-        qr_slug: string;
-        gym_id: string;
-        gyms: { theme: GymTheme; timezone: string } | null;
-      }>(),
-  ]);
+  const equipmentRes = await supabase
+    .from('equipment')
+    .select(
+      'id, name, machine_label, qr_slug, gym_id, equipment_type, exercises, gyms(theme, timezone)',
+    )
+    .eq('id', equipmentId)
+    .maybeSingle<{
+      id: string;
+      name: string;
+      machine_label: string | null;
+      qr_slug: string;
+      gym_id: string;
+      equipment_type: EquipmentType;
+      exercises: string[];
+      gyms: { theme: GymTheme; timezone: string } | null;
+    }>();
 
   if (!equipmentRes.data) notFound();
   const equipment = equipmentRes.data;
   const theme: GymTheme = equipment.gyms?.theme ?? 'halogen';
   const timezone = equipment.gyms?.timezone ?? 'UTC';
+  const isMulti = equipment.equipment_type === 'strength_multi';
+
+  // Resolve the active exercise tag (if any) and validate against the
+  // equipment's configured list, case-insensitively.
+  const activeExercise: string | null =
+    isMulti && exerciseParam
+      ? equipment.exercises.find(
+          (e) => e.toLowerCase() === exerciseParam.toLowerCase(),
+        ) ?? null
+      : null;
 
   const { data: setsRaw } = await supabase
     .from('sets')
-    .select('weight, reps, logged_at')
+    .select('weight, reps, logged_at, exercise_name')
     .eq('member_id', memberId)
     .eq('equipment_id', equipmentId)
     .order('logged_at', { ascending: true })
     .returns<SetRow[]>();
 
-  const sets = setsRaw ?? [];
+  const allSets = setsRaw ?? [];
+  const sets = activeExercise
+    ? allSets.filter((s) => s.exercise_name === activeExercise)
+    : allSets;
+
   const totals = lifetimeTotals(sets, timezone);
   const pr = prFor(sets);
   const progression = progressionFor(sets, timezone);
@@ -91,7 +112,33 @@ export default async function MachineStatsPage({
           {equipment.machine_label && (
             <p className="mt-2 text-sm text-muted">{equipment.machine_label}</p>
           )}
+          {activeExercise && (
+            <p className="mt-2 text-sm text-accent font-medium">{activeExercise}</p>
+          )}
         </header>
+
+        {isMulti && equipment.exercises.length > 0 && (
+          <section className="mb-6">
+            <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-2">
+              Exercise
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <ExerciseChip
+                href={`/me/stats/${equipment.id}`}
+                label="All"
+                active={!activeExercise}
+              />
+              {equipment.exercises.map((ex) => (
+                <ExerciseChip
+                  key={ex}
+                  href={`/me/stats/${equipment.id}?exercise=${encodeURIComponent(ex)}`}
+                  label={ex}
+                  active={activeExercise === ex}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="grid grid-cols-3 gap-3 mb-6">
           <Stat
@@ -131,6 +178,30 @@ export default async function MachineStatsPage({
         </p>
       </main>
     </div>
+  );
+}
+
+function ExerciseChip({
+  href,
+  label,
+  active,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={[
+        'px-3 py-1.5 rounded-full text-sm border transition',
+        active
+          ? 'bg-accent text-accent-ink border-accent font-medium'
+          : 'bg-surface text-ink border-line hover:border-muted',
+      ].join(' ')}
+    >
+      {label}
+    </Link>
   );
 }
 

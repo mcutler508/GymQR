@@ -14,7 +14,9 @@ export function lifetimeTotals(
   let volume = 0;
   const days = new Set<string>();
   for (const s of sets) {
-    volume += Number(s.weight) * Number(s.reps);
+    if (s.weight != null && s.reps != null) {
+      volume += Number(s.weight) * Number(s.reps);
+    }
     days.add(dayKeyInTz(s.logged_at, timezone));
   }
   return {
@@ -56,11 +58,13 @@ export type PR = {
   logged_at: string;
 } | null;
 
-/** Heaviest single set (by weight, tiebreaker: most reps). TZ-independent. */
+/** Heaviest single set (by weight, tiebreaker: most reps). TZ-independent.
+ *  Skips rows without weight/reps (cardio). */
 export function prFor(sets: Pick<Set, 'weight' | 'reps' | 'logged_at'>[]): PR {
-  if (sets.length === 0) return null;
-  let best = sets[0];
-  for (const s of sets) {
+  const strength = sets.filter((s) => s.weight != null && s.reps != null);
+  if (strength.length === 0) return null;
+  let best = strength[0];
+  for (const s of strength) {
     if (Number(s.weight) > Number(best.weight)) {
       best = s;
     } else if (Number(s.weight) === Number(best.weight) && Number(s.reps) > Number(best.reps)) {
@@ -91,6 +95,7 @@ export function progressionFor(
 ): ProgressionPoint[] {
   const byDay = new Map<string, { weight: number; reps: number }>();
   for (const s of sets) {
+    if (s.weight == null || s.reps == null) continue;
     const day = dayKeyInTz(s.logged_at, timezone);
     const w = Number(s.weight);
     const r = Number(s.reps);

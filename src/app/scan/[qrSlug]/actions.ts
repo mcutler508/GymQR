@@ -70,6 +70,7 @@ export async function logSet(input: {
   reps: number;
   rpe?: number | null;
   note?: string | null;
+  exerciseName?: string | null;
   qrSlug: string;
 }): Promise<void> {
   const store = await cookies();
@@ -79,6 +80,32 @@ export async function logSet(input: {
   if (!Number.isFinite(input.weight) || input.weight <= 0) throw new Error('Weight must be > 0');
   if (!Number.isInteger(input.reps) || input.reps <= 0) throw new Error('Reps must be a positive integer');
 
+  // Re-fetch the equipment row so we can validate the exercise tag against the
+  // server-side allowlist. Don't trust whatever the client posted.
+  const { data: eq } = await supabase
+    .from('equipment')
+    .select('id, equipment_type, exercises')
+    .eq('id', input.equipmentId)
+    .maybeSingle<{
+      id: string;
+      equipment_type: 'strength_single' | 'strength_multi' | 'cardio';
+      exercises: string[];
+    }>();
+  if (!eq) throw new Error('Equipment not found');
+
+  let exerciseName: string | null = null;
+  if (eq.equipment_type === 'strength_multi') {
+    const candidate = (input.exerciseName ?? '').trim();
+    if (!candidate) throw new Error('Pick an exercise.');
+    const match = (eq.exercises ?? []).find(
+      (e) => e.toLowerCase() === candidate.toLowerCase(),
+    );
+    if (!match) throw new Error('That exercise isn’t configured for this machine.');
+    exerciseName = match;
+  }
+  // strength_single: ignore any client-sent exerciseName; the equipment IS the
+  // exercise. cardio: not reachable from the UI yet.
+
   const { error } = await supabase.from('sets').insert({
     member_id: memberId,
     equipment_id: input.equipmentId,
@@ -87,6 +114,7 @@ export async function logSet(input: {
     reps: input.reps,
     rpe: input.rpe ?? null,
     note: input.note ?? null,
+    exercise_name: exerciseName,
   });
 
   if (error) throw new Error(error.message);

@@ -3,10 +3,20 @@
 import { useState, useTransition, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateEquipment } from '../../../../actions';
+import { ExercisePicker } from '../../ExercisePicker';
+import type { EquipmentType } from '@/lib/supabase';
+
+type FormType = Exclude<EquipmentType, 'cardio'>;
 
 type Props = {
   id: string;
-  initial: { name: string; machineLabel: string; status: 'active' | 'inactive' };
+  initial: {
+    name: string;
+    machineLabel: string;
+    status: 'active' | 'inactive';
+    equipmentType: EquipmentType;
+    exercises: string[];
+  };
 };
 
 export function EditEquipmentForm({ id, initial }: Props) {
@@ -14,16 +24,35 @@ export function EditEquipmentForm({ id, initial }: Props) {
   const [name, setName] = useState(initial.name);
   const [machineLabel, setMachineLabel] = useState(initial.machineLabel);
   const [status, setStatus] = useState<'active' | 'inactive'>(initial.status);
+  // Cardio is read-only in the picker for now: if a row is somehow already
+  // cardio, surface it but don't let owners select it as a new value yet.
+  const [equipmentType, setEquipmentType] = useState<FormType>(
+    initial.equipmentType === 'cardio' ? 'strength_single' : initial.equipmentType,
+  );
+  const [exercises, setExercises] = useState<string[]>(initial.exercises);
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  const willConvertToMulti =
+    initial.equipmentType === 'strength_single' && equipmentType === 'strength_multi';
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErr(null);
     setSaved(false);
+    if (equipmentType === 'strength_multi' && exercises.length === 0) {
+      return setErr('Add at least one exercise for a multi-exercise machine.');
+    }
     startTransition(async () => {
-      const res = await updateEquipment({ id, name, machineLabel, status });
+      const res = await updateEquipment({
+        id,
+        name,
+        machineLabel,
+        status,
+        equipmentType,
+        exercises,
+      });
       if (!res.ok) return setErr(res.error);
       setSaved(true);
       router.refresh();
@@ -31,7 +60,7 @@ export function EditEquipmentForm({ id, initial }: Props) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-5">
       <label className="block">
         <span className="block text-sm text-neutral-400 mb-1">Equipment name</span>
         <input
@@ -41,6 +70,7 @@ export function EditEquipmentForm({ id, initial }: Props) {
           className="w-full px-4 py-3 rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-500 focus:outline-none"
         />
       </label>
+
       <label className="block">
         <span className="block text-sm text-neutral-400 mb-1">Machine label</span>
         <input
@@ -50,6 +80,36 @@ export function EditEquipmentForm({ id, initial }: Props) {
           className="w-full px-4 py-3 rounded-lg bg-neutral-900 border border-neutral-800 focus:border-neutral-500 focus:outline-none"
         />
       </label>
+
+      <fieldset className="space-y-2">
+        <legend className="text-sm text-neutral-400 mb-1">Equipment type</legend>
+        <TypeRadio
+          checked={equipmentType === 'strength_single'}
+          onSelect={() => setEquipmentType('strength_single')}
+          label="Single exercise"
+          hint="One movement only."
+        />
+        <TypeRadio
+          checked={equipmentType === 'strength_multi'}
+          onSelect={() => setEquipmentType('strength_multi')}
+          label="Multi-exercise"
+          hint="Members pick the exercise on scan."
+        />
+      </fieldset>
+
+      {equipmentType === 'strength_multi' && (
+        <div className="p-4 rounded-lg border border-neutral-800 bg-neutral-950 space-y-3">
+          <p className="text-sm text-neutral-300 font-medium">Exercises on this machine</p>
+          <ExercisePicker value={exercises} onChange={setExercises} />
+          {willConvertToMulti && (
+            <p className="text-xs text-amber-400">
+              Existing logged sets on this machine will be tagged as &quot;{initial.name}&quot;
+              so PRs stay attached when you switch to multi-exercise.
+            </p>
+          )}
+        </div>
+      )}
+
       <label className="flex items-center gap-3 p-3 rounded-lg bg-neutral-900 border border-neutral-800">
         <input
           type="checkbox"
@@ -79,5 +139,40 @@ export function EditEquipmentForm({ id, initial }: Props) {
       {err && <p className="text-sm text-red-400">{err}</p>}
       {saved && <p className="text-sm text-emerald-400">Saved.</p>}
     </form>
+  );
+}
+
+function TypeRadio({
+  checked,
+  onSelect,
+  label,
+  hint,
+}: {
+  checked: boolean;
+  onSelect: () => void;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <label
+      className={[
+        'flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition',
+        checked
+          ? 'border-neutral-400 bg-neutral-900'
+          : 'border-neutral-800 bg-neutral-950 hover:border-neutral-700',
+      ].join(' ')}
+    >
+      <input
+        type="radio"
+        name="equipment_type"
+        checked={checked}
+        onChange={onSelect}
+        className="mt-1 h-4 w-4"
+      />
+      <span className="min-w-0">
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="block text-xs text-neutral-500 mt-0.5">{hint}</span>
+      </span>
+    </label>
   );
 }

@@ -10,6 +10,8 @@ type Row = {
   machine_label: string | null;
   qr_slug: string;
   status: 'active' | 'inactive';
+  equipment_type: 'strength_single' | 'strength_multi' | 'cardio';
+  exercises: string[];
 };
 
 export default async function EquipmentList() {
@@ -27,7 +29,7 @@ export default async function EquipmentList() {
   const [equipmentRes, setsRes, scansRes] = await Promise.all([
     supabase
       .from('equipment')
-      .select('id, name, machine_label, qr_slug, status')
+      .select('id, name, machine_label, qr_slug, status, equipment_type, exercises')
       .eq('gym_id', gym.id)
       .order('created_at', { ascending: true })
       .returns<Row[]>(),
@@ -87,6 +89,16 @@ export default async function EquipmentList() {
                 <div className="min-w-0">
                   <p className="font-medium">
                     {e.name}
+                    {e.equipment_type === 'strength_multi' && (
+                      <span className="ml-2 text-[10px] font-mono uppercase tracking-[0.15em] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 align-middle">
+                        Multi · {e.exercises.length} ex
+                      </span>
+                    )}
+                    {e.equipment_type === 'cardio' && (
+                      <span className="ml-2 text-[10px] font-mono uppercase tracking-[0.15em] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 align-middle">
+                        Cardio
+                      </span>
+                    )}
                     {e.status === 'inactive' && (
                       <span className="ml-2 text-xs uppercase tracking-wider text-neutral-500">
                         inactive

@@ -1,8 +1,6 @@
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
-import { supabase, type Set } from '@/lib/supabase';
-import { suggestTarget } from '@/lib/suggested-target';
-import { groupIntoSessions } from '@/lib/stats';
+import { supabase, type Set, type EquipmentType } from '@/lib/supabase';
 import { ScanClient } from './ScanClient';
 import { recordScan } from './actions';
 
@@ -19,6 +17,8 @@ type EquipmentJoin = {
   machine_label: string | null;
   gym_id: string;
   status: 'active' | 'inactive';
+  equipment_type: EquipmentType;
+  exercises: string[];
   gyms: { name: string; theme: GymTheme; timezone: string } | null;
 };
 
@@ -31,7 +31,9 @@ export default async function ScanPage({
 
   const { data: equipment, error } = await supabase
     .from('equipment')
-    .select('id, qr_slug, name, machine_label, gym_id, status, gyms(name, theme, timezone)')
+    .select(
+      'id, qr_slug, name, machine_label, gym_id, status, equipment_type, exercises, gyms(name, theme, timezone)',
+    )
     .eq('qr_slug', qrSlug)
     .maybeSingle<EquipmentJoin>();
 
@@ -66,6 +68,8 @@ export default async function ScanPage({
   const store = await cookies();
   const memberId = store.get(COOKIE_NAME)?.value ?? null;
 
+  // Pull more sets than before so the client can split per-exercise without
+  // running short on multi-exercise machines.
   let recentSets: Set[] = [];
   let memberName: string | null = null;
   let needsPasscode = false;
@@ -74,11 +78,13 @@ export default async function ScanPage({
     const [setsRes, memberRes] = await Promise.all([
       supabase
         .from('sets')
-        .select('id, member_id, equipment_id, gym_id, weight, reps, rpe, note, logged_at')
+        .select(
+          'id, member_id, equipment_id, gym_id, weight, reps, rpe, note, logged_at, exercise_name, duration_seconds, distance_meters',
+        )
         .eq('member_id', memberId)
         .eq('equipment_id', equipment.id)
         .order('logged_at', { ascending: false })
-        .limit(10),
+        .limit(40),
       supabase
         .from('members')
         .select('name, passcode_hash')
@@ -95,16 +101,8 @@ export default async function ScanPage({
     }
   }
 
-  const suggestion = suggestTarget(recentSets[0]);
   const gymName = equipment.gyms?.name ?? 'Gym';
   const timezone = equipment.gyms?.timezone ?? 'UTC';
-
-  // Pre-compute sessions on the server: latest 10 sets are already in desc
-  // order, but groupIntoSessions sorts ascending internally and returns
-  // sessions earliest-first. We reverse for display (most recent first).
-  const sessions = groupIntoSessions(recentSets, 2);
-  const lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
-  const recentSessions = [...sessions].reverse();
 
   return (
     <div data-theme={theme} className="min-h-screen bg-canvas text-ink">
@@ -116,15 +114,15 @@ export default async function ScanPage({
           machine_label: equipment.machine_label,
           gym_id: equipment.gym_id,
           status: equipment.status,
+          equipment_type: equipment.equipment_type,
+          exercises: equipment.exercises ?? [],
         }}
         gymName={gymName}
         gymTimezone={timezone}
         identified={!!memberId && !!memberName}
         needsPasscode={needsPasscode}
         memberName={memberName}
-        lastSession={lastSession}
-        recentSessions={recentSessions}
-        suggestion={suggestion}
+        recentSets={recentSets}
       />
     </div>
   );

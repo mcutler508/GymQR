@@ -26,6 +26,8 @@ export const supabase: SupabaseClient = new Proxy({} as SupabaseClient, {
   },
 });
 
+export type EquipmentType = 'strength_single' | 'strength_multi' | 'cardio';
+
 export type Equipment = {
   id: string;
   qr_slug: string;
@@ -33,6 +35,8 @@ export type Equipment = {
   machine_label: string | null;
   gym_id: string;
   status: 'active' | 'inactive';
+  equipment_type: EquipmentType;
+  exercises: string[];
 };
 
 export type Set = {
@@ -40,11 +44,14 @@ export type Set = {
   member_id: string;
   equipment_id: string;
   gym_id: string;
-  weight: number;
-  reps: number;
+  weight: number | null;
+  reps: number | null;
   rpe: number | null;
   note: string | null;
   logged_at: string;
+  exercise_name: string | null;
+  duration_seconds: number | null;
+  distance_meters: number | null;
 };
 
 export type Gym = {

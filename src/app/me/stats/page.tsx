@@ -7,20 +7,48 @@ import {
   weeklyStreak,
   prFor,
   progressionFor,
+  type ProgressionPoint,
+  type PR,
 } from '@/lib/stats';
 import { Sparkline } from './Sparkline';
 import type { GymTheme } from '@/app/scan/[qrSlug]/page';
+import type { EquipmentType } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
 const COOKIE_NAME = 'reptag_member_id';
 
 type SetRow = {
-  weight: number;
-  reps: number;
+  weight: number | null;
+  reps: number | null;
   logged_at: string;
   equipment_id: string;
-  equipment: { id: string; name: string; machine_label: string | null } | null;
+  exercise_name: string | null;
+  equipment: {
+    id: string;
+    name: string;
+    machine_label: string | null;
+    equipment_type: EquipmentType;
+  } | null;
+};
+
+type ExerciseStat = {
+  name: string | null; // null = single-type bucket
+  setCount: number;
+  pr: PR;
+  lastLogged: string | null;
+};
+
+type MachineStat = {
+  id: string;
+  name: string;
+  label: string | null;
+  equipmentType: EquipmentType;
+  setCount: number;
+  pr: PR;
+  progression: ProgressionPoint[];
+  lastLogged: string | null;
+  exercises: ExerciseStat[]; // only populated for multi-type
 };
 
 export default async function MyStatsPage() {
@@ -50,7 +78,9 @@ export default async function MyStatsPage() {
 
   const { data: setsRaw } = await supabase
     .from('sets')
-    .select('weight, reps, logged_at, equipment_id, equipment(id, name, machine_label)')
+    .select(
+      'weight, reps, logged_at, equipment_id, exercise_name, equipment(id, name, machine_label, equipment_type)',
+    )
     .eq('member_id', memberId)
     .order('logged_at', { ascending: false })
     .returns<SetRow[]>();
@@ -59,29 +89,65 @@ export default async function MyStatsPage() {
   const totals = lifetimeTotals(sets, timezone);
   const streak = weeklyStreak(sets, timezone);
 
-  const byEquipment = new Map<string, { name: string; label: string | null; sets: SetRow[] }>();
+  const byEquipment = new Map<
+    string,
+    {
+      name: string;
+      label: string | null;
+      equipmentType: EquipmentType;
+      sets: SetRow[];
+    }
+  >();
   for (const s of sets) {
     const id = s.equipment_id;
-    const eqName = s.equipment?.name ?? 'Unknown';
-    const eqLabel = s.equipment?.machine_label ?? null;
     if (!byEquipment.has(id)) {
-      byEquipment.set(id, { name: eqName, label: eqLabel, sets: [] });
+      byEquipment.set(id, {
+        name: s.equipment?.name ?? 'Unknown',
+        label: s.equipment?.machine_label ?? null,
+        equipmentType: s.equipment?.equipment_type ?? 'strength_single',
+        sets: [],
+      });
     }
     byEquipment.get(id)!.sets.push(s);
   }
 
-  const machines = Array.from(byEquipment.entries())
+  const machines: MachineStat[] = Array.from(byEquipment.entries())
     .map(([id, group]) => {
       const pr = prFor(group.sets);
       const progression = progressionFor(group.sets, timezone);
+
+      let exercises: ExerciseStat[] = [];
+      if (group.equipmentType === 'strength_multi') {
+        const byEx = new Map<string, SetRow[]>();
+        for (const s of group.sets) {
+          const key = s.exercise_name ?? '(unlabeled)';
+          if (!byEx.has(key)) byEx.set(key, []);
+          byEx.get(key)!.push(s);
+        }
+        exercises = Array.from(byEx.entries())
+          .map(([name, exSets]) => ({
+            name: name === '(unlabeled)' ? null : name,
+            setCount: exSets.length,
+            pr: prFor(exSets),
+            lastLogged: exSets[0]?.logged_at ?? null,
+          }))
+          .sort((a, b) => {
+            if (!a.lastLogged) return 1;
+            if (!b.lastLogged) return -1;
+            return a.lastLogged < b.lastLogged ? 1 : -1;
+          });
+      }
+
       return {
         id,
         name: group.name,
         label: group.label,
+        equipmentType: group.equipmentType,
         setCount: group.sets.length,
         pr,
         progression,
         lastLogged: group.sets[0]?.logged_at ?? null,
+        exercises,
       };
     })
     .sort((a, b) => (a.lastLogged && b.lastLogged ? (a.lastLogged < b.lastLogged ? 1 : -1) : 0));
@@ -123,25 +189,11 @@ export default async function MyStatsPage() {
           <ul className="space-y-3">
             {machines.map((m) => (
               <li key={m.id}>
-                <Link
-                  href={`/me/stats/${m.id}`}
-                  className="block p-4 rounded-card bg-surface border border-line hover:border-muted transition"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="font-medium">{m.name}</p>
-                      <p className="text-xs text-muted">
-                        {[m.label, `${m.setCount} sets`].filter(Boolean).join(' · ')}
-                      </p>
-                      {m.pr && (
-                        <p className="text-sm text-muted-strong mt-2 tabular-nums">
-                          PR <span className="font-semibold text-ink">{fmtWeight(m.pr.weight)} × {m.pr.reps}</span>
-                        </p>
-                      )}
-                    </div>
-                    <Sparkline points={m.progression.map((p) => p.weight)} />
-                  </div>
-                </Link>
+                {m.equipmentType === 'strength_multi' ? (
+                  <MultiMachineCard machine={m} />
+                ) : (
+                  <SingleMachineCard machine={m} />
+                )}
               </li>
             ))}
           </ul>
@@ -153,6 +205,90 @@ export default async function MyStatsPage() {
           </Link>
         </p>
       </main>
+    </div>
+  );
+}
+
+function SingleMachineCard({ machine }: { machine: MachineStat }) {
+  return (
+    <Link
+      href={`/me/stats/${machine.id}`}
+      className="block p-4 rounded-card bg-surface border border-line hover:border-muted transition"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-medium">{machine.name}</p>
+          <p className="text-xs text-muted">
+            {[machine.label, `${machine.setCount} sets`].filter(Boolean).join(' · ')}
+          </p>
+          {machine.pr && (
+            <p className="text-sm text-muted-strong mt-2 tabular-nums">
+              PR{' '}
+              <span className="font-semibold text-ink">
+                {fmtWeight(machine.pr.weight)} × {machine.pr.reps}
+              </span>
+            </p>
+          )}
+        </div>
+        <Sparkline points={machine.progression.map((p) => p.weight)} />
+      </div>
+    </Link>
+  );
+}
+
+function MultiMachineCard({ machine }: { machine: MachineStat }) {
+  return (
+    <div className="p-4 rounded-card bg-surface border border-line">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="font-medium">
+            {machine.name}
+            <span className="ml-2 text-[10px] font-mono uppercase tracking-[0.15em] px-1.5 py-0.5 rounded bg-line text-muted-strong align-middle">
+              Multi
+            </span>
+          </p>
+          <p className="text-xs text-muted">
+            {[machine.label, `${machine.setCount} sets across ${machine.exercises.length} exercises`]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        </div>
+      </div>
+
+      <ul className="mt-3 divide-y divide-line">
+        {machine.exercises.map((ex) => {
+          const exHref = ex.name
+            ? `/me/stats/${machine.id}?exercise=${encodeURIComponent(ex.name)}`
+            : `/me/stats/${machine.id}`;
+          return (
+            <li key={ex.name ?? '(unlabeled)'}>
+              <Link
+                href={exHref}
+                className="flex items-center justify-between gap-4 py-2 hover:opacity-80 transition"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {ex.name ?? '(unlabeled)'}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {ex.setCount} {ex.setCount === 1 ? 'set' : 'sets'}
+                  </p>
+                </div>
+                {ex.pr ? (
+                  <p className="text-sm tabular-nums shrink-0">
+                    <span className="text-muted text-xs">PR </span>
+                    <span className="font-semibold">
+                      {fmtWeight(ex.pr.weight)} × {ex.pr.reps}
+                    </span>
+                  </p>
+                ) : (
+                  <span className="text-xs text-muted">no PR yet</span>
+                )}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

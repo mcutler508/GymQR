@@ -5,6 +5,14 @@ import { revalidatePath } from 'next/cache';
 import { getServerClient } from '@/lib/supabase-server';
 import { generateQrSlug } from '@/lib/qr';
 import { isValidTimezone } from '@/lib/timezone';
+import { normalizeExerciseList } from '@/lib/exercise-catalog';
+import type { EquipmentType } from '@/lib/supabase';
+
+const VALID_EQUIPMENT_TYPES: EquipmentType[] = [
+  'strength_single',
+  'strength_multi',
+  'cardio',
+];
 
 /* ---------------------------- auth actions ---------------------------- */
 
@@ -79,6 +87,8 @@ export async function signOutOwner(): Promise<void> {
 export async function createEquipment(input: {
   name: string;
   machineLabel: string;
+  equipmentType?: EquipmentType;
+  exercises?: string[];
 }): Promise<{ ok: true; id: string; qrSlug: string } | { ok: false; error: string }> {
   const supabase = await getServerClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -96,6 +106,22 @@ export async function createEquipment(input: {
   const machineLabel = input.machineLabel.trim();
   if (!name) return { ok: false, error: 'Equipment name is required.' };
 
+  const equipmentType: EquipmentType =
+    input.equipmentType && VALID_EQUIPMENT_TYPES.includes(input.equipmentType)
+      ? input.equipmentType
+      : 'strength_single';
+
+  // Single-type equipment doesn't carry an exercise list (the equipment IS the
+  // exercise). Force empty regardless of what the client sent.
+  const exercises =
+    equipmentType === 'strength_single'
+      ? []
+      : normalizeExerciseList(input.exercises ?? []);
+
+  if (equipmentType === 'strength_multi' && exercises.length === 0) {
+    return { ok: false, error: 'Add at least one exercise for a multi-exercise machine.' };
+  }
+
   // One retry on slug collision (vanishingly unlikely with 4-char suffix, but
   // unique constraint will yell if it happens).
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -107,6 +133,8 @@ export async function createEquipment(input: {
         machine_label: machineLabel || null,
         qr_slug: qrSlug,
         gym_id: gym.id,
+        equipment_type: equipmentType,
+        exercises,
       })
       .select('id, qr_slug')
       .single();
@@ -127,6 +155,8 @@ export async function updateEquipment(input: {
   name: string;
   machineLabel: string;
   status: 'active' | 'inactive';
+  equipmentType?: EquipmentType;
+  exercises?: string[];
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await getServerClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -135,15 +165,60 @@ export async function updateEquipment(input: {
   const name = input.name.trim();
   if (!name) return { ok: false, error: 'Equipment name is required.' };
 
+  // Re-fetch the prior row to detect a single→multi conversion. Owners can
+  // only update their own gym's equipment (RLS enforces ownership chain), so
+  // a missing row here means the id was bogus or not theirs.
+  const { data: prior } = await supabase
+    .from('equipment')
+    .select('id, name, equipment_type')
+    .eq('id', input.id)
+    .maybeSingle<{ id: string; name: string; equipment_type: EquipmentType }>();
+  if (!prior) return { ok: false, error: 'Equipment not found.' };
+
+  const equipmentType: EquipmentType =
+    input.equipmentType && VALID_EQUIPMENT_TYPES.includes(input.equipmentType)
+      ? input.equipmentType
+      : prior.equipment_type;
+
+  let exercises =
+    equipmentType === 'strength_single'
+      ? []
+      : normalizeExerciseList(input.exercises ?? []);
+
+  // Single → Multi conversion: keep the prior name as a default exercise so
+  // historical sets (auto-tagged below) still show up under a chip the member
+  // can pick.
+  const isConvertingToMulti =
+    prior.equipment_type === 'strength_single' && equipmentType === 'strength_multi';
+  if (isConvertingToMulti && !exercises.some((e) => e.toLowerCase() === prior.name.toLowerCase())) {
+    exercises = [prior.name, ...exercises];
+  }
+
+  if (equipmentType === 'strength_multi' && exercises.length === 0) {
+    return { ok: false, error: 'Add at least one exercise for a multi-exercise machine.' };
+  }
+
   const { error } = await supabase
     .from('equipment')
     .update({
       name,
       machine_label: input.machineLabel.trim() || null,
       status: input.status,
+      equipment_type: equipmentType,
+      exercises,
     })
     .eq('id', input.id);
   if (error) return { ok: false, error: error.message };
+
+  // Auto-tag historical sets so PR continuity survives the conversion.
+  if (isConvertingToMulti) {
+    const { error: tagErr } = await supabase
+      .from('sets')
+      .update({ exercise_name: prior.name })
+      .eq('equipment_id', input.id)
+      .is('exercise_name', null);
+    if (tagErr) return { ok: false, error: `Saved equipment, but couldn't tag history: ${tagErr.message}` };
+  }
 
   revalidatePath('/owner/equipment');
   revalidatePath(`/owner/equipment/${input.id}/edit`);

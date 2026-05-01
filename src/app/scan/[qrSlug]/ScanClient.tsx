@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useTransition, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, useTransition, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Equipment, Set } from '@/lib/supabase';
-import { describeSuggestion, type Suggestion } from '@/lib/suggested-target';
+import { describeSuggestion, suggestTarget, type Suggestion } from '@/lib/suggested-target';
+import { groupIntoSessions } from '@/lib/stats';
 import { formatLocal } from '@/lib/timezone';
 import {
   createMemberAction,
@@ -23,9 +24,7 @@ type Props = {
   identified: boolean;
   needsPasscode: boolean;
   memberName: string | null;
-  lastSession: Session | null;
-  recentSessions: Session[];
-  suggestion: Suggestion;
+  recentSets: Set[];
 };
 
 export function ScanClient(props: Props) {
@@ -41,9 +40,7 @@ export function ScanClient(props: Props) {
       gymName={props.gymName}
       gymTimezone={props.gymTimezone}
       memberName={props.memberName}
-      lastSession={props.lastSession}
-      recentSessions={props.recentSessions}
-      suggestion={props.suggestion}
+      recentSets={props.recentSets}
     />
   );
 }
@@ -249,25 +246,70 @@ function LogView({
   gymName,
   gymTimezone,
   memberName,
-  lastSession,
-  recentSessions,
-  suggestion,
+  recentSets,
 }: {
   equipment: Equipment;
   gymName: string;
   gymTimezone: string;
   memberName: string | null;
-  lastSession: Session | null;
-  recentSessions: Session[];
-  suggestion: Suggestion;
+  recentSets: Set[];
 }) {
   const router = useRouter();
+  const isMulti = equipment.equipment_type === 'strength_multi';
+
+  // Default chip = the exercise this member used most recently on this
+  // equipment, falling back to the first chip if they haven't logged here.
+  const initialExercise = useMemo<string | null>(() => {
+    if (!isMulti) return null;
+    const lastTagged = recentSets.find((s) => s.exercise_name);
+    if (lastTagged?.exercise_name) return lastTagged.exercise_name;
+    return equipment.exercises[0] ?? null;
+  }, [isMulti, recentSets, equipment.exercises]);
+
+  const [selectedExercise, setSelectedExercise] = useState<string | null>(initialExercise);
+
+  const filteredSets = useMemo<Set[]>(() => {
+    if (!isMulti) return recentSets;
+    if (!selectedExercise) return [];
+    return recentSets.filter((s) => s.exercise_name === selectedExercise);
+  }, [isMulti, recentSets, selectedExercise]);
+
+  const sessions = useMemo<Session[]>(
+    () => groupIntoSessions(filteredSets, 2),
+    [filteredSets],
+  );
+  const lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
+  const recentSessions = useMemo<Session[]>(() => [...sessions].reverse(), [sessions]);
+
+  const suggestion = useMemo<Suggestion>(() => {
+    const lastSet = filteredSets[0];
+    if (!lastSet || lastSet.weight == null || lastSet.reps == null) {
+      return suggestTarget(undefined);
+    }
+    return suggestTarget({ weight: Number(lastSet.weight), reps: Number(lastSet.reps) });
+  }, [filteredSets]);
+
   const [weight, setWeight] = useState<string>(
     suggestion.kind === 'first-time' ? '' : String(suggestion.weight),
   );
   const [reps, setReps] = useState<string>(
     suggestion.kind === 'first-time' ? '' : String(suggestion.reps),
   );
+
+  // When the member taps a different exercise chip, refresh the inputs to that
+  // exercise's suggested target so the form matches the suggestion above it.
+  useEffect(() => {
+    if (suggestion.kind === 'first-time') {
+      setWeight('');
+      setReps('');
+    } else {
+      setWeight(String(suggestion.weight));
+      setReps(String(suggestion.reps));
+    }
+    // Tied to chip selection, not input edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedExercise]);
+
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
   const [justLogged, setJustLogged] = useState(false);
@@ -275,6 +317,7 @@ function LogView({
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErr(null);
+    if (isMulti && !selectedExercise) return setErr('Pick an exercise first.');
     const w = Number(weight);
     const r = Number(reps);
     if (!Number.isFinite(w) || w <= 0) return setErr('Enter a valid weight.');
@@ -286,6 +329,7 @@ function LogView({
           gymId: equipment.gym_id,
           weight: w,
           reps: r,
+          exerciseName: isMulti ? selectedExercise : null,
           qrSlug: equipment.qr_slug,
         });
         setJustLogged(true);
@@ -313,6 +357,32 @@ function LogView({
     <main className="p-4 max-w-md mx-auto pb-32">
       <Header equipment={equipment} gymName={gymName} />
 
+      {isMulti && (
+        <section className="mt-5">
+          <Kicker className="mb-2">Exercise</Kicker>
+          <div className="flex flex-wrap gap-2">
+            {equipment.exercises.map((ex) => {
+              const on = selectedExercise === ex;
+              return (
+                <button
+                  key={ex}
+                  type="button"
+                  onClick={() => setSelectedExercise(ex)}
+                  className={[
+                    'px-3 py-2 rounded-full text-sm border transition tabular-nums',
+                    on
+                      ? 'bg-accent text-accent-ink border-accent font-medium'
+                      : 'bg-surface text-ink border-line hover:border-muted',
+                  ].join(' ')}
+                >
+                  {ex}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <section className="mt-6 p-4 rounded-card bg-surface border border-line">
         <div className="flex items-baseline justify-between gap-2">
           <Kicker>Last Time</Kicker>
@@ -326,12 +396,18 @@ function LogView({
           <ul className="mt-2 space-y-1 text-lg">
             {lastSession.sets.map((s) => (
               <li key={s.id} className="tabular-nums">
-                {fmtWeight(s.weight)} × {s.reps}
+                {s.weight != null && s.reps != null
+                  ? `${fmtWeight(Number(s.weight))} × ${s.reps}`
+                  : '—'}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-2 text-muted text-sm">No history on this machine yet.</p>
+          <p className="mt-2 text-muted text-sm">
+            {isMulti
+              ? 'No history on this exercise yet.'
+              : 'No history on this machine yet.'}
+          </p>
         )}
       </section>
 
@@ -379,7 +455,13 @@ function LogView({
                   {formatLocal(session.startedAt, gymTimezone, 'MMM d · h:mm a')}
                 </span>{' '}
                 <span className="tabular-nums">
-                  {session.sets.map((s) => `${fmtWeight(s.weight)} × ${s.reps}`).join(', ')}
+                  {session.sets
+                    .map((s) =>
+                      s.weight != null && s.reps != null
+                        ? `${fmtWeight(Number(s.weight))} × ${s.reps}`
+                        : '—',
+                    )
+                    .join(', ')}
                 </span>
               </li>
             ))}
