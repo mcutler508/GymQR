@@ -8,8 +8,6 @@ type Props = {
   title: string;
   /** Italicized serif accent word that completes the title. */
   flourish?: string;
-  /** Sub copy beneath the headline. */
-  lede: string;
   /** The form. */
   children: ReactNode;
   /** Footer link prompt e.g. "New here?" */
@@ -29,7 +27,6 @@ export function AuthShell({
   kicker,
   title,
   flourish,
-  lede,
   children,
   footerPrompt,
   footerHref,
@@ -83,19 +80,9 @@ export function AuthShell({
                 </>
               )}
             </h1>
-            <p className="mt-8 max-w-md font-display text-lg leading-relaxed text-zinc-400 italic">
-              {lede}
-            </p>
           </div>
 
-          <footer className="flex items-end justify-between gap-6">
-            <p className="max-w-xs text-xs leading-relaxed text-zinc-500">
-              The gym that remembers every rep. A quiet system, sitting behind a sticker.
-            </p>
-            <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">
-              № 001 / Owner
-            </span>
-          </footer>
+          <div aria-hidden />
         </aside>
 
         {/* ── Form panel ─────────────────────────────────────────── */}
