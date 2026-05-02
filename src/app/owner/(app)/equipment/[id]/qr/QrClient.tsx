@@ -8,6 +8,8 @@ type Props = {
   initialScanUrl: string;
   gymName: string;
   gymTheme: string;
+  tagline: string;
+  taglinePosition: 'top' | 'bottom';
 };
 
 /**
@@ -35,7 +37,16 @@ const DUMBBELL_SVG = `
 
 const LOGO_DATA_URL = `data:image/svg+xml;utf8,${encodeURIComponent(DUMBBELL_SVG)}`;
 
-export function QrClient({ equipment, initialScanUrl, gymName, gymTheme }: Props) {
+export function QrClient({
+  equipment,
+  initialScanUrl,
+  gymName,
+  gymTheme,
+  tagline,
+  taglinePosition,
+}: Props) {
+  const trimmedTagline = tagline.trim();
+  const showTagline = trimmedTagline.length > 0;
   const containerRef = useRef<HTMLDivElement | null>(null);
   const qrRef = useRef<{
     update: (opts: Record<string, unknown>) => void;
@@ -185,6 +196,12 @@ export function QrClient({ equipment, initialScanUrl, gymName, gymTheme }: Props
           </p>
         )}
 
+        {showTagline && taglinePosition === 'top' && (
+          <p className="mt-4 font-display text-sm italic text-neutral-600">
+            {trimmedTagline}
+          </p>
+        )}
+
         <div ref={containerRef} className="my-7" />
 
         <div className="flex w-full items-center gap-3">
@@ -194,9 +211,11 @@ export function QrClient({ equipment, initialScanUrl, gymName, gymTheme }: Props
           </span>
           <span className="h-px flex-1 bg-neutral-300" />
         </div>
-        <p className="mt-3 font-display text-sm italic text-neutral-600">
-          Your gym remembers your lifts.
-        </p>
+        {showTagline && taglinePosition === 'bottom' && (
+          <p className="mt-3 font-display text-sm italic text-neutral-600">
+            {trimmedTagline}
+          </p>
+        )}
       </div>
     </div>
   );

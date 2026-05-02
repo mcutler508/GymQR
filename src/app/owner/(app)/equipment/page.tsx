@@ -1,17 +1,35 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getServerClient } from '@/lib/supabase-server';
+import { dayKeyInTz } from '@/lib/timezone';
+import type { EquipmentTableRow } from '@/lib/equipment-columns';
+import type { EquipmentType } from '@/lib/supabase';
+import { EquipmentListClient } from './EquipmentListClient';
 
 export const dynamic = 'force-dynamic';
 
-type Row = {
+type EquipmentDbRow = {
   id: string;
   name: string;
   machine_label: string | null;
   qr_slug: string;
   status: 'active' | 'inactive';
-  equipment_type: 'strength_single' | 'strength_multi' | 'cardio';
+  equipment_type: EquipmentType;
   exercises: string[];
+  created_at: string;
+};
+
+type SetDbRow = {
+  equipment_id: string;
+  member_id: string | null;
+  weight: number | null;
+  reps: number | null;
+  duration_seconds: number | null;
+  logged_at: string;
+};
+
+type ScanDbRow = {
+  equipment_id: string;
+  scanned_at: string;
 };
 
 export default async function EquipmentList() {
@@ -21,134 +39,114 @@ export default async function EquipmentList() {
 
   const { data: gym } = await supabase
     .from('gyms')
-    .select('id')
+    .select('id, timezone')
     .eq('owner_id', userData.user.id)
-    .maybeSingle();
+    .maybeSingle<{ id: string; timezone: string | null }>();
   if (!gym) redirect('/owner');
+
+  const timezone = gym.timezone ?? 'UTC';
 
   const [equipmentRes, setsRes, scansRes] = await Promise.all([
     supabase
       .from('equipment')
-      .select('id, name, machine_label, qr_slug, status, equipment_type, exercises')
+      .select('id, name, machine_label, qr_slug, status, equipment_type, exercises, created_at')
       .eq('gym_id', gym.id)
       .order('created_at', { ascending: true })
-      .returns<Row[]>(),
+      .returns<EquipmentDbRow[]>(),
     supabase
       .from('sets')
-      .select('equipment_id')
-      .eq('gym_id', gym.id),
+      .select('equipment_id, member_id, weight, reps, duration_seconds, logged_at')
+      .eq('gym_id', gym.id)
+      .returns<SetDbRow[]>(),
     supabase
       .from('scan_events')
       .select('equipment_id, scanned_at')
       .eq('gym_id', gym.id)
-      .order('scanned_at', { ascending: false }),
+      .order('scanned_at', { ascending: false })
+      .returns<ScanDbRow[]>(),
   ]);
 
-  const rows = equipmentRes.data ?? [];
+  const equipment = equipmentRes.data ?? [];
+  const sets = setsRes.data ?? [];
+  const scans = scansRes.data ?? [];
 
-  const setsByEq = new Map<string, number>();
-  for (const s of setsRes.data ?? []) {
-    setsByEq.set(s.equipment_id, (setsByEq.get(s.equipment_id) ?? 0) + 1);
+  // Aggregate per-equipment in one pass.
+  const todayKey = dayKeyInTz(new Date().toISOString(), timezone);
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+  type Agg = {
+    setCount: number;
+    members: Set<string>;
+    todaySetCount: number;
+    weekSetCount: number;
+    lastSetAt: string | null;
+    totalVolume: number;
+    totalCardioSeconds: number;
+  };
+  const setAgg = new Map<string, Agg>();
+  function getAgg(id: string): Agg {
+    let a = setAgg.get(id);
+    if (!a) {
+      a = {
+        setCount: 0,
+        members: new Set<string>(),
+        todaySetCount: 0,
+        weekSetCount: 0,
+        lastSetAt: null,
+        totalVolume: 0,
+        totalCardioSeconds: 0,
+      };
+      setAgg.set(id, a);
+    }
+    return a;
+  }
+
+  for (const s of sets) {
+    const a = getAgg(s.equipment_id);
+    a.setCount += 1;
+    if (s.member_id) a.members.add(s.member_id);
+    if (s.weight != null && s.reps != null) {
+      a.totalVolume += Number(s.weight) * Number(s.reps);
+    }
+    if (s.duration_seconds != null) {
+      a.totalCardioSeconds += Number(s.duration_seconds);
+    }
+    const ts = new Date(s.logged_at).getTime();
+    if (!a.lastSetAt || ts > new Date(a.lastSetAt).getTime()) {
+      a.lastSetAt = s.logged_at;
+    }
+    if (dayKeyInTz(s.logged_at, timezone) === todayKey) a.todaySetCount += 1;
+    if (ts >= sevenDaysAgo) a.weekSetCount += 1;
   }
 
   const lastScanByEq = new Map<string, string>();
-  for (const s of scansRes.data ?? []) {
+  for (const s of scans) {
     if (!lastScanByEq.has(s.equipment_id)) {
       lastScanByEq.set(s.equipment_id, s.scanned_at);
     }
   }
 
-  return (
-    <div>
-      <header className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Equipment</h1>
-        <Link
-          href="/owner/equipment/new"
-          className="px-4 py-2 rounded-lg bg-white text-black text-sm font-medium"
-        >
-          + New equipment
-        </Link>
-      </header>
+  const rows: EquipmentTableRow[] = equipment.map((e) => {
+    const a = setAgg.get(e.id);
+    return {
+      id: e.id,
+      name: e.name,
+      machine_label: e.machine_label,
+      qr_slug: e.qr_slug,
+      status: e.status,
+      equipment_type: e.equipment_type,
+      exercises: e.exercises ?? [],
+      created_at: e.created_at,
+      setCount: a?.setCount ?? 0,
+      uniqueMembers: a?.members.size ?? 0,
+      todaySetCount: a?.todaySetCount ?? 0,
+      weekSetCount: a?.weekSetCount ?? 0,
+      lastSetAt: a?.lastSetAt ?? null,
+      lastScanAt: lastScanByEq.get(e.id) ?? null,
+      totalVolume: a?.totalVolume ?? 0,
+      totalCardioSeconds: a?.totalCardioSeconds ?? 0,
+    };
+  });
 
-      {rows.length === 0 && (
-        <p className="text-sm text-neutral-400">
-          No equipment yet. Click <span className="text-neutral-200">New equipment</span> to add your first machine.
-        </p>
-      )}
-
-      <ul className="space-y-3">
-        {rows.map((e) => {
-          const setCount = setsByEq.get(e.id) ?? 0;
-          const lastScan = lastScanByEq.get(e.id);
-          return (
-            <li
-              key={e.id}
-              className="p-4 rounded-xl bg-neutral-900 border border-neutral-800"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <p className="font-medium">
-                    {e.name}
-                    {e.equipment_type === 'strength_multi' && (
-                      <span className="ml-2 text-[10px] font-mono uppercase tracking-[0.15em] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 align-middle">
-                        Multi · {e.exercises.length} ex
-                      </span>
-                    )}
-                    {e.equipment_type === 'cardio' && (
-                      <span className="ml-2 text-[10px] font-mono uppercase tracking-[0.15em] px-1.5 py-0.5 rounded bg-neutral-800 text-neutral-300 align-middle">
-                        Cardio
-                      </span>
-                    )}
-                    {e.status === 'inactive' && (
-                      <span className="ml-2 text-xs uppercase tracking-wider text-neutral-500">
-                        inactive
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-sm text-neutral-400">{e.machine_label ?? '—'}</p>
-                  <p className="text-xs text-neutral-600 mt-1 font-mono truncate">{e.qr_slug}</p>
-                  <div className="flex gap-3 mt-2 text-xs text-neutral-500">
-                    <span>
-                      <span className="text-neutral-300 tabular-nums">{setCount}</span> sets
-                    </span>
-                    <span>
-                      Last scan{' '}
-                      <span className="text-neutral-300">
-                        {lastScan ? fmtRelative(lastScan) : '—'}
-                      </span>
-                    </span>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2 shrink-0">
-                  <Link
-                    href={`/owner/equipment/${e.id}/qr`}
-                    className="px-3 py-1.5 text-sm rounded-md bg-white text-black font-medium text-center"
-                  >
-                    Print QR
-                  </Link>
-                  <Link
-                    href={`/owner/equipment/${e.id}/edit`}
-                    className="px-3 py-1.5 text-sm rounded-md border border-neutral-700 text-center"
-                  >
-                    Edit
-                  </Link>
-                </div>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-}
-
-function fmtRelative(iso: string): string {
-  const t = new Date(iso).getTime();
-  const now = Date.now();
-  const diffSec = Math.round((now - t) / 1000);
-  if (diffSec < 60) return 'just now';
-  if (diffSec < 60 * 60) return `${Math.round(diffSec / 60)}m ago`;
-  if (diffSec < 60 * 60 * 24) return `${Math.round(diffSec / 3600)}h ago`;
-  if (diffSec < 60 * 60 * 24 * 7) return `${Math.round(diffSec / 86400)}d ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  return <EquipmentListClient rows={rows} />;
 }

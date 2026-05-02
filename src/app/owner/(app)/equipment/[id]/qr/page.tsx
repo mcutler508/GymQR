@@ -17,9 +17,15 @@ export default async function OwnerQrPage({
 
   const { data: gym } = await supabase
     .from('gyms')
-    .select('id, name, theme')
+    .select('id, name, theme, tagline, tagline_position')
     .eq('owner_id', userData.user.id)
-    .maybeSingle<{ id: string; name: string; theme: string | null }>();
+    .maybeSingle<{
+      id: string;
+      name: string;
+      theme: string | null;
+      tagline: string | null;
+      tagline_position: 'top' | 'bottom' | null;
+    }>();
   if (!gym) redirect('/owner');
 
   const { data: equipment } = await supabase
@@ -42,6 +48,8 @@ export default async function OwnerQrPage({
       initialScanUrl={scanUrl}
       gymName={gym.name}
       gymTheme={gym.theme ?? 'halogen'}
+      tagline={gym.tagline ?? ''}
+      taglinePosition={gym.tagline_position ?? 'bottom'}
     />
   );
 }

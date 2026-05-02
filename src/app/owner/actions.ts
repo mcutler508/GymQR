@@ -278,6 +278,58 @@ export async function updateGymTheme(input: {
   return { ok: true };
 }
 
+export async function updateGymName(input: {
+  name: string;
+}): Promise<{ ok: true; name: string } | { ok: false; error: string }> {
+  const name = input.name.trim();
+  if (!name) return { ok: false, error: 'Gym name is required.' };
+  if (name.length > 80) return { ok: false, error: 'Gym name is too long (max 80 characters).' };
+
+  const supabase = await getServerClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { ok: false, error: 'Not signed in.' };
+
+  const { error } = await supabase
+    .from('gyms')
+    .update({ name })
+    .eq('owner_id', userData.user.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/owner/branding');
+  revalidatePath('/owner');
+  return { ok: true, name };
+}
+
+const VALID_TAGLINE_POSITIONS = ['top', 'bottom'] as const;
+type TaglinePosition = (typeof VALID_TAGLINE_POSITIONS)[number];
+
+export async function updateGymTagline(input: {
+  tagline: string;
+  position: TaglinePosition;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const tagline = input.tagline.trim();
+  if (tagline.length > 120) {
+    return { ok: false, error: 'Tagline is too long (max 120 characters).' };
+  }
+  if (!VALID_TAGLINE_POSITIONS.includes(input.position)) {
+    return { ok: false, error: 'Invalid tagline position.' };
+  }
+
+  const supabase = await getServerClient();
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData.user) return { ok: false, error: 'Not signed in.' };
+
+  const { error } = await supabase
+    .from('gyms')
+    .update({ tagline, tagline_position: input.position })
+    .eq('owner_id', userData.user.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath('/owner/branding');
+  revalidatePath('/owner');
+  return { ok: true };
+}
+
 export async function updateGymTimezone(input: {
   timezone: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {

@@ -2,7 +2,11 @@ import { redirect } from 'next/navigation';
 import { getServerClient } from '@/lib/supabase-server';
 import { ThemePicker } from './ThemePicker';
 import { TimezoneEditor } from './TimezoneEditor';
+import { GymNameEditor } from './GymNameEditor';
+import { TaglineEditor } from './TaglineEditor';
 import type { GymTheme } from '@/app/scan/[qrSlug]/page';
+
+type TaglinePosition = 'top' | 'bottom';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,9 +17,16 @@ export default async function BrandingPage() {
 
   const { data: gym } = await supabase
     .from('gyms')
-    .select('id, name, theme, timezone')
+    .select('id, name, theme, timezone, tagline, tagline_position')
     .eq('owner_id', userData.user.id)
-    .maybeSingle<{ id: string; name: string; theme: GymTheme; timezone: string }>();
+    .maybeSingle<{
+      id: string;
+      name: string;
+      theme: GymTheme;
+      timezone: string;
+      tagline: string | null;
+      tagline_position: TaglinePosition | null;
+    }>();
 
   if (!gym) redirect('/owner');
 
@@ -29,11 +40,31 @@ export default async function BrandingPage() {
       </header>
 
       <section className="mt-8">
+        <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-3">Gym name</h2>
+        <p className="text-sm text-neutral-400 mb-4">
+          Shown to your members on the scan page and used throughout the owner dashboard.
+        </p>
+        <GymNameEditor currentName={gym.name} />
+      </section>
+
+      <section className="mt-12">
         <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-3">Theme</h2>
         <p className="text-sm text-neutral-400 mb-4">
           Picks the visual style your members see when they scan a sticker. Changes save instantly.
         </p>
         <ThemePicker currentTheme={gym.theme} gymName={gym.name} />
+      </section>
+
+      <section className="mt-12">
+        <h2 className="text-xs uppercase tracking-wider text-neutral-500 mb-3">Sticker tagline</h2>
+        <p className="text-sm text-neutral-400 mb-4">
+          Short line printed on every QR sticker. Pick whether it sits above or below the QR code.
+          Leave blank to hide it entirely.
+        </p>
+        <TaglineEditor
+          currentTagline={gym.tagline ?? ''}
+          currentPosition={gym.tagline_position ?? 'bottom'}
+        />
       </section>
 
       <section className="mt-12">
