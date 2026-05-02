@@ -153,6 +153,14 @@ export async function logSet(input: {
   revalidatePath(`/scan/${input.qrSlug}`);
 }
 
+// A "scan" should mean a real arrival at the machine — one row per engagement,
+// not one per render. The page's Server Component re-runs on revalidatePath
+// (every set logged), refreshes, back-navigation, dev double-render, etc., so
+// we dedupe here against a recent window scoped to the same member+equipment.
+// Twelve hours covers a typical workout/visit; a return trip the next day
+// counts again.
+const SCAN_DEDUPE_WINDOW_MS = 12 * 60 * 60 * 1000;
+
 export async function recordScan(input: {
   equipmentId: string;
   gymId: string;
@@ -161,6 +169,29 @@ export async function recordScan(input: {
   const memberId = store.get(COOKIE_NAME)?.value ?? null;
   const hdrs = await headers();
   const ua = hdrs.get('user-agent');
+
+  const sinceIso = new Date(Date.now() - SCAN_DEDUPE_WINDOW_MS).toISOString();
+
+  let dedupeQuery = supabase
+    .from('scan_events')
+    .select('id', { head: true, count: 'exact' })
+    .eq('gym_id', input.gymId)
+    .eq('equipment_id', input.equipmentId)
+    .gte('scanned_at', sinceIso);
+
+  // For identified members, dedupe by member. For anonymous taps, fall back to
+  // user-agent so two unrelated phones at the same machine still count, but
+  // the same phone refreshing doesn't.
+  if (memberId) {
+    dedupeQuery = dedupeQuery.eq('member_id', memberId);
+  } else if (ua) {
+    dedupeQuery = dedupeQuery.is('member_id', null).eq('user_agent', ua);
+  } else {
+    dedupeQuery = dedupeQuery.is('member_id', null);
+  }
+
+  const { count } = await dedupeQuery;
+  if ((count ?? 0) > 0) return;
 
   await supabase.from('scan_events').insert({
     equipment_id: input.equipmentId,
