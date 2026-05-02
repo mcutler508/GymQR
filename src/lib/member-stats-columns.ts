@@ -14,17 +14,17 @@ export type MemberStatRow = {
   equipmentType: EquipmentType;
   exerciseName: string | null;  // null for single + cardio + multi-unlabeled
 
-  setCount: number;
-  prWeight: number | null;
-  prReps: number | null;
-  lastLoggedAt: string | null;
-  totalVolume: number;          // strength only
+  setCount: number;             // sets in the active range
+  prWeight: number | null;      // lifetime PR weight
+  prReps: number | null;        // lifetime PR reps
+  lastLoggedAt: string | null;  // most recent set (any time)
+  totalVolume: number;          // strength only, in range
 
-  longestCardioSeconds: number; // cardio only
+  longestCardioSeconds: number; // cardio only, in range
   longestCardioMeters: number;
 
-  weekSetCount: number;         // sets in last 7 days
-  monthSetCount: number;        // sets in last 30 days
+  rangePrWeight: number | null; // best lift inside the active range
+  rangePrReps: number | null;
 };
 
 export type ColumnId =
@@ -32,11 +32,10 @@ export type ColumnId =
   | 'type'
   | 'set_count'
   | 'pr'
+  | 'range_pr'
   | 'last_lifted'
   | 'total_volume'
-  | 'longest_cardio'
-  | 'week_sets'
-  | 'month_sets';
+  | 'longest_cardio';
 
 export type ColumnDef = {
   id: ColumnId;
@@ -124,18 +123,17 @@ export const ALL_COLUMNS: ColumnDef[] = [
     },
   },
   {
-    id: 'week_sets',
-    label: 'This week',
+    id: 'range_pr',
+    label: 'PR (range)',
     align: 'right',
-    sortValue: (r) => r.weekSetCount,
-    render: (r) => String(r.weekSetCount),
-  },
-  {
-    id: 'month_sets',
-    label: 'Last 30d',
-    align: 'right',
-    sortValue: (r) => r.monthSetCount,
-    render: (r) => String(r.monthSetCount),
+    sortValue: (r) =>
+      r.rangePrWeight != null && r.rangePrReps != null
+        ? r.rangePrWeight * 1000 + r.rangePrReps
+        : -1,
+    render: (r) =>
+      r.rangePrWeight != null && r.rangePrReps != null
+        ? `${fmtWeight(r.rangePrWeight)} × ${r.rangePrReps}`
+        : '—',
   },
 ];
 

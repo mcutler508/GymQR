@@ -12,27 +12,70 @@ import {
   type MemberStatRow,
   type ViewMode,
 } from '@/lib/member-stats-columns';
-import { MachineCardsView, type MachineStat } from './MachineCardsView';
+import {
+  RANGE_OPTIONS,
+  bucketsForRange,
+  filterByRange,
+  loadRange,
+  saveRange,
+  type RangeKey,
+} from '@/lib/member-range';
+import { prFor } from '@/lib/stats';
+import { cardioBest } from '@/lib/cardio';
+import type { EquipmentType } from '@/lib/supabase';
+import { MachineCardsView, type MachineStat, type ExerciseStat } from './MachineCardsView';
 import { MachineTableView } from './MachineTableView';
 import { WeeklyBarCharts } from './WeeklyBarCharts';
-import type { WeeklyBucket } from '@/lib/stats';
 
-type Props = {
-  machines: MachineStat[];
-  rows: MemberStatRow[];
-  buckets: WeeklyBucket[];
-  hasCardio: boolean;
+export type ClientSet = {
+  weight: number | null;
+  reps: number | null;
+  duration_seconds: number | null;
+  distance_meters: number | null;
+  logged_at: string;
+  equipment_id: string;
+  exercise_name: string | null;
 };
 
-export function MemberStatsClient({ machines, rows, buckets, hasCardio }: Props) {
+export type EquipmentMeta = {
+  id: string;
+  name: string;
+  machine_label: string | null;
+  equipment_type: EquipmentType;
+};
+
+type Props = {
+  memberName: string;
+  gymName: string;
+  themeClassNames: string;
+  sets: ClientSet[];
+  equipment: EquipmentMeta[];
+  timezone: string;
+};
+
+export function MemberStatsClient({
+  memberName,
+  gymName,
+  themeClassNames,
+  sets,
+  equipment,
+  timezone,
+}: Props) {
+  const [range, setRange] = useState<RangeKey>('month');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [columnIds, setColumnIds] = useState<ColumnId[]>(DEFAULT_COLUMN_IDS);
 
   // Load persisted preferences after mount (avoids SSR/CSR mismatch).
   useEffect(() => {
+    setRange(loadRange());
     setViewMode(loadViewMode());
     setColumnIds(loadColumnIds());
   }, []);
+
+  function changeRange(next: RangeKey) {
+    setRange(next);
+    saveRange(next);
+  }
 
   function changeViewMode(next: ViewMode) {
     setViewMode(next);
@@ -49,20 +92,87 @@ export function MemberStatsClient({ machines, rows, buckets, hasCardio }: Props)
     });
   }
 
-  // Render columns in the canonical ALL_COLUMNS order regardless of toggle order.
-  const orderedColumnIds = useMemo<ColumnId[]>(() => {
-    return ALL_COLUMNS.filter((c) => columnIds.includes(c.id)).map((c) => c.id);
-  }, [columnIds]);
+  const equipmentById = useMemo(() => {
+    const m = new Map<string, EquipmentMeta>();
+    for (const e of equipment) m.set(e.id, e);
+    return m;
+  }, [equipment]);
 
-  const showCharts = buckets.length > 0 && machines.length > 0;
+  // Range-scoped slice of sets — used for hero + table + cards. Lifetime PR
+  // and "last lifted" are computed against the full set list.
+  const rangedSets = useMemo(
+    () => filterByRange(sets, range, timezone),
+    [sets, range, timezone],
+  );
+
+  // Bar chart buckets — granularity matches the active range.
+  const { buckets, scale } = useMemo(
+    () => bucketsForRange(sets, range, timezone),
+    [sets, range, timezone],
+  );
+
+  const hasCardio = useMemo(
+    () => sets.some((s) => s.duration_seconds != null),
+    [sets],
+  );
+
+  // Hero stats — 3 range-aware + 1 lifetime PR.
+  const hero = useMemo(() => computeHero(rangedSets, sets), [rangedSets, sets]);
+
+  // Cards view shape — currently respects the range filter for setCount and
+  // progression so cards mirror table when the user filters down.
+  const machines = useMemo<MachineStat[]>(
+    () => buildMachines(rangedSets, equipmentById, timezone),
+    [rangedSets, equipmentById, timezone],
+  );
+
+  // Table rows — one per equipment×exercise. Numbers are range-scoped; PR
+  // stays lifetime so the column lives up to its name.
+  const rows = useMemo<MemberStatRow[]>(
+    () => buildRows(sets, rangedSets, equipmentById),
+    [sets, rangedSets, equipmentById],
+  );
+
+  // Render columns in the canonical ALL_COLUMNS order regardless of toggle order.
+  const orderedColumnIds = useMemo<ColumnId[]>(
+    () => ALL_COLUMNS.filter((c) => columnIds.includes(c.id)).map((c) => c.id),
+    [columnIds],
+  );
+
+  const sublabel = RANGE_OPTIONS.find((o) => o.key === range)?.sublabel ?? '';
+  const hasAnySets = sets.length > 0;
 
   return (
     <>
-      {showCharts && <WeeklyBarCharts buckets={buckets} hasCardio={hasCardio} />}
+      <header className="mb-5">
+        <h1 className={themeClassNames}>{memberName}</h1>
+        <p className="mt-2 text-sm text-muted">{gymName}</p>
+      </header>
+
+      <div className="mb-4">
+        <RangePicker value={range} onChange={changeRange} />
+      </div>
+
+      <section className="grid grid-cols-2 gap-3 mb-6">
+        <Stat label="Volume" value={fmtVol(hero.volume)} sub={`lbs ${sublabel}`} />
+        <Stat label="Sets" value={String(hero.setCount)} sub={sublabel} />
+        <Stat label="Workouts" value={String(hero.workoutDays)} sub={`days ${sublabel}`} />
+        <Stat
+          label="Lifetime PR"
+          value={
+            hero.lifetimePr
+              ? `${fmtWeight(hero.lifetimePr.weight)} × ${hero.lifetimePr.reps}`
+              : '—'
+          }
+          sub={hero.lifetimePr ? 'all time' : 'no sets yet'}
+        />
+      </section>
+
+      {hasAnySets && <WeeklyBarCharts buckets={buckets} scale={scale} hasCardio={hasCardio} />}
 
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">
-          Per-machine
+          Per-machine · {sublabel}
         </h2>
         <div className="flex items-center gap-2">
           <ViewToggle value={viewMode} onChange={changeViewMode} />
@@ -72,9 +182,13 @@ export function MemberStatsClient({ machines, rows, buckets, hasCardio }: Props)
         </div>
       </div>
 
-      {machines.length === 0 ? (
+      {!hasAnySets ? (
         <p className="text-sm text-muted">
           No sets logged yet. Scan a QR sticker to get started.
+        </p>
+      ) : machines.length === 0 ? (
+        <p className="text-sm text-muted">
+          No activity in this range. Try a wider window above.
         </p>
       ) : viewMode === 'cards' ? (
         <MachineCardsView machines={machines} />
@@ -82,6 +196,294 @@ export function MemberStatsClient({ machines, rows, buckets, hasCardio }: Props)
         <MachineTableView rows={rows} columnIds={orderedColumnIds} />
       )}
     </>
+  );
+}
+
+/* ---------------------------- compute helpers ---------------------------- */
+
+function computeHero(rangedSets: ClientSet[], allSets: ClientSet[]) {
+  let volume = 0;
+  const days = new globalThis.Set<string>();
+  for (const s of rangedSets) {
+    if (s.weight != null && s.reps != null) {
+      volume += Number(s.weight) * Number(s.reps);
+    }
+    days.add(s.logged_at.slice(0, 10));
+  }
+  return {
+    volume: Math.round(volume),
+    setCount: rangedSets.length,
+    workoutDays: days.size,
+    lifetimePr: prFor(allSets),
+  };
+}
+
+function buildMachines(
+  rangedSets: ClientSet[],
+  equipmentById: Map<string, EquipmentMeta>,
+  timezone: string,
+): MachineStat[] {
+  const byEquipment = new Map<string, ClientSet[]>();
+  for (const s of rangedSets) {
+    if (!byEquipment.has(s.equipment_id)) byEquipment.set(s.equipment_id, []);
+    byEquipment.get(s.equipment_id)!.push(s);
+  }
+
+  const machines: MachineStat[] = [];
+  for (const [id, machineSets] of byEquipment.entries()) {
+    const meta = equipmentById.get(id);
+    if (!meta) continue;
+    const pr = prFor(machineSets);
+    const progression = progressionInTz(machineSets, timezone);
+
+    let exercises: ExerciseStat[] = [];
+    let cardio = null;
+    if (meta.equipment_type === 'strength_multi') {
+      const byEx = new Map<string, ClientSet[]>();
+      for (const s of machineSets) {
+        const key = s.exercise_name ?? '(unlabeled)';
+        if (!byEx.has(key)) byEx.set(key, []);
+        byEx.get(key)!.push(s);
+      }
+      exercises = Array.from(byEx.entries())
+        .map(([name, exSets]) => ({
+          name: name === '(unlabeled)' ? null : name,
+          setCount: exSets.length,
+          pr: prFor(exSets),
+          lastLogged: latest(exSets),
+        }))
+        .sort((a, b) => {
+          if (!a.lastLogged) return 1;
+          if (!b.lastLogged) return -1;
+          return a.lastLogged < b.lastLogged ? 1 : -1;
+        });
+    } else if (meta.equipment_type === 'cardio') {
+      cardio = cardioBest(machineSets);
+    }
+
+    machines.push({
+      id,
+      name: meta.name,
+      label: meta.machine_label,
+      equipmentType: meta.equipment_type,
+      setCount: machineSets.length,
+      pr,
+      progression,
+      lastLogged: latest(machineSets),
+      exercises,
+      cardio,
+    });
+  }
+
+  machines.sort((a, b) =>
+    a.lastLogged && b.lastLogged ? (a.lastLogged < b.lastLogged ? 1 : -1) : 0,
+  );
+  return machines;
+}
+
+function buildRows(
+  allSets: ClientSet[],
+  rangedSets: ClientSet[],
+  equipmentById: Map<string, EquipmentMeta>,
+): MemberStatRow[] {
+  // Group by equipment for lifetime metrics (PR, last lifted).
+  const allByEq = new Map<string, ClientSet[]>();
+  for (const s of allSets) {
+    if (!allByEq.has(s.equipment_id)) allByEq.set(s.equipment_id, []);
+    allByEq.get(s.equipment_id)!.push(s);
+  }
+  const rangedByEq = new Map<string, ClientSet[]>();
+  for (const s of rangedSets) {
+    if (!rangedByEq.has(s.equipment_id)) rangedByEq.set(s.equipment_id, []);
+    rangedByEq.get(s.equipment_id)!.push(s);
+  }
+
+  const rows: MemberStatRow[] = [];
+  // Iterate over the union of equipment ids — we want a row even when an
+  // equipment has lifetime data but nothing in-range, so the "last lifted"
+  // signal stays visible. The view-level filter below removes empty rows.
+  const seen = new globalThis.Set<string>();
+  for (const id of [...allByEq.keys(), ...rangedByEq.keys()]) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const meta = equipmentById.get(id);
+    if (!meta) continue;
+
+    const lifetimeSets = allByEq.get(id) ?? [];
+    const inRangeSets = rangedByEq.get(id) ?? [];
+
+    if (meta.equipment_type === 'strength_multi') {
+      const allByEx = groupByExercise(lifetimeSets);
+      const inRangeByEx = groupByExercise(inRangeSets);
+      const exKeys = new globalThis.Set<string>([
+        ...allByEx.keys(),
+        ...inRangeByEx.keys(),
+      ]);
+      for (const exKey of exKeys) {
+        const lifetimeEx = allByEx.get(exKey) ?? [];
+        const rangedEx = inRangeByEx.get(exKey) ?? [];
+        rows.push(buildRow({
+          rowId: `${id}::${exKey}`,
+          equipmentId: id,
+          meta,
+          exerciseName: exKey === '__unlabeled__' ? null : exKey,
+          lifetimeSets: lifetimeEx,
+          rangedSets: rangedEx,
+        }));
+      }
+    } else {
+      rows.push(buildRow({
+        rowId: id,
+        equipmentId: id,
+        meta,
+        exerciseName: null,
+        lifetimeSets,
+        rangedSets: inRangeSets,
+      }));
+    }
+  }
+
+  // Drop rows with no in-range activity AND no lifetime activity (defensive,
+  // shouldn't happen) — but KEEP lifetime-only rows so members can see what
+  // they've previously trained even when filtering to a tight range.
+  return rows.filter((r) => r.setCount > 0);
+}
+
+function buildRow(input: {
+  rowId: string;
+  equipmentId: string;
+  meta: EquipmentMeta;
+  exerciseName: string | null;
+  lifetimeSets: ClientSet[];
+  rangedSets: ClientSet[];
+}): MemberStatRow {
+  const lifetimePr = prFor(input.lifetimeSets);
+  const rangedPr = prFor(input.rangedSets);
+
+  let totalVolume = 0;
+  for (const s of input.rangedSets) {
+    if (s.weight != null && s.reps != null) {
+      totalVolume += Number(s.weight) * Number(s.reps);
+    }
+  }
+
+  let longestCardioSeconds = 0;
+  let longestCardioMeters = 0;
+  if (input.meta.equipment_type === 'cardio') {
+    const best = cardioBest(input.rangedSets);
+    longestCardioSeconds = best.longestDurationSeconds;
+    longestCardioMeters = best.longestDistanceMeters;
+  }
+
+  return {
+    id: input.rowId,
+    equipmentId: input.equipmentId,
+    machineName: input.meta.name,
+    machineLabel: input.meta.machine_label,
+    equipmentType: input.meta.equipment_type,
+    exerciseName: input.exerciseName,
+    setCount: input.rangedSets.length,
+    prWeight: lifetimePr?.weight ?? null,
+    prReps: lifetimePr?.reps ?? null,
+    rangePrWeight: rangedPr?.weight ?? null,
+    rangePrReps: rangedPr?.reps ?? null,
+    lastLoggedAt: latest(input.lifetimeSets),
+    totalVolume,
+    longestCardioSeconds,
+    longestCardioMeters,
+  };
+}
+
+function groupByExercise(sets: ClientSet[]): Map<string, ClientSet[]> {
+  const m = new Map<string, ClientSet[]>();
+  for (const s of sets) {
+    const key = s.exercise_name ?? '__unlabeled__';
+    if (!m.has(key)) m.set(key, []);
+    m.get(key)!.push(s);
+  }
+  return m;
+}
+
+function progressionInTz(sets: ClientSet[], timezone: string) {
+  // Lightweight inline reimplementation — same shape as stats.progressionFor
+  // but typed against ClientSet.
+  const byDay = new Map<string, { weight: number; reps: number }>();
+  for (const s of sets) {
+    if (s.weight == null || s.reps == null) continue;
+    const day = s.logged_at.slice(0, 10); // YYYY-MM-DD in UTC; close enough for sparkline ordering
+    const w = Number(s.weight);
+    const r = Number(s.reps);
+    const cur = byDay.get(day);
+    if (!cur || w > cur.weight || (w === cur.weight && r > cur.reps)) {
+      byDay.set(day, { weight: w, reps: r });
+    }
+  }
+  // Suppress unused timezone param warning while keeping API consistent.
+  void timezone;
+  return Array.from(byDay.entries())
+    .map(([day, v]) => ({
+      day,
+      ts: new Date(`${day}T12:00:00Z`).getTime(),
+      weight: v.weight,
+      reps: v.reps,
+    }))
+    .sort((a, b) => a.ts - b.ts);
+}
+
+function latest(sets: ClientSet[]): string | null {
+  let max: string | null = null;
+  for (const s of sets) {
+    if (!max || s.logged_at > max) max = s.logged_at;
+  }
+  return max;
+}
+
+function fmtVol(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 10_000) return `${(n / 1_000).toFixed(0)}k`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
+function fmtWeight(w: number): string {
+  return Number.isInteger(w) ? String(w) : w.toFixed(1);
+}
+
+/* ---------------------------- UI fragments ---------------------------- */
+
+function RangePicker({
+  value,
+  onChange,
+}: {
+  value: RangeKey;
+  onChange: (r: RangeKey) => void;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Time range"
+      className="inline-flex items-center gap-1 p-1 rounded-card bg-surface border border-line text-xs"
+    >
+      {RANGE_OPTIONS.map((opt) => {
+        const active = value === opt.key;
+        return (
+          <button
+            key={opt.key}
+            role="tab"
+            aria-selected={active}
+            type="button"
+            onClick={() => onChange(opt.key)}
+            className={`px-3 py-1.5 rounded transition-colors ${
+              active
+                ? 'bg-accent text-accent-ink font-medium'
+                : 'text-muted hover:text-ink'
+            }`}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -188,6 +590,28 @@ function ColumnPicker({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
+  return (
+    <div className="p-4 rounded-card bg-surface border border-line">
+      <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">
+        {label}
+      </p>
+      <p
+        className={[
+          'mt-1 font-display tabular-nums',
+          'halogen:text-3xl halogen:font-medium',
+          'concrete:text-4xl concrete:font-black',
+          'locker:text-2xl locker:font-semibold',
+          'athletic:text-3xl athletic:font-black athletic:italic',
+        ].join(' ')}
+      >
+        {value}
+      </p>
+      <p className="text-xs text-muted">{sub}</p>
     </div>
   );
 }

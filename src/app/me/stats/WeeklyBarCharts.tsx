@@ -9,10 +9,11 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import type { WeeklyBucket } from '@/lib/stats';
+import type { RangeBucket, BucketScale } from '@/lib/member-range';
 
 type Props = {
-  buckets: WeeklyBucket[];
+  buckets: RangeBucket[];
+  scale: BucketScale;
   hasCardio: boolean;
 };
 
@@ -20,28 +21,34 @@ type Metric = {
   key: string;
   label: string;
   unit: string;
-  valueOf: (b: WeeklyBucket) => number;
+  valueOf: (b: RangeBucket) => number;
   format: (n: number) => string;
+};
+
+const SCALE_LABEL: Record<BucketScale, string> = {
+  day: 'day',
+  week: 'week',
+  month: 'month',
 };
 
 const STRENGTH_METRICS: Metric[] = [
   {
     key: 'sets',
-    label: 'Sets per week',
+    label: 'Sets',
     unit: 'sets',
     valueOf: (b) => b.setCount,
     format: (n) => String(n),
   },
   {
     key: 'volume',
-    label: 'Volume per week',
+    label: 'Volume',
     unit: 'lbs',
     valueOf: (b) => b.totalVolume,
     format: (n) => formatThousands(n),
   },
   {
     key: 'workouts',
-    label: 'Workouts per week',
+    label: 'Workouts',
     unit: 'days',
     valueOf: (b) => b.workoutDays,
     format: (n) => String(n),
@@ -50,14 +57,15 @@ const STRENGTH_METRICS: Metric[] = [
 
 const CARDIO_METRIC: Metric = {
   key: 'cardio',
-  label: 'Cardio per week',
+  label: 'Cardio',
   unit: 'min',
   valueOf: (b) => Math.round(b.cardioSeconds / 60),
   format: (n) => String(n),
 };
 
-export function WeeklyBarCharts({ buckets, hasCardio }: Props) {
+export function WeeklyBarCharts({ buckets, scale, hasCardio }: Props) {
   const metrics = hasCardio ? [...STRENGTH_METRICS, CARDIO_METRIC] : STRENGTH_METRICS;
+  const scaleWord = SCALE_LABEL[scale];
 
   return (
     <div
@@ -67,20 +75,27 @@ export function WeeklyBarCharts({ buckets, hasCardio }: Props) {
       ].join(' ')}
     >
       {metrics.map((m) => (
-        <ChartCard key={m.key} metric={m} buckets={buckets} />
+        <ChartCard key={m.key} metric={m} buckets={buckets} scaleWord={scaleWord} />
       ))}
     </div>
   );
 }
 
-function ChartCard({ metric, buckets }: { metric: Metric; buckets: WeeklyBucket[] }) {
+function ChartCard({
+  metric,
+  buckets,
+  scaleWord,
+}: {
+  metric: Metric;
+  buckets: RangeBucket[];
+  scaleWord: string;
+}) {
   const latest = buckets[buckets.length - 1];
   const latestValue = latest ? metric.valueOf(latest) : 0;
 
-  // Pre-shape to avoid recharts re-keying.
   const data = buckets.map((b) => ({
-    label: b.weekLabel,
-    weekStart: b.weekStart,
+    label: b.label,
+    bucketKey: b.key,
     value: metric.valueOf(b),
   }));
 
@@ -88,13 +103,13 @@ function ChartCard({ metric, buckets }: { metric: Metric; buckets: WeeklyBucket[
     <div className="rounded-card border border-line bg-surface p-4">
       <div className="flex items-baseline justify-between gap-3 mb-2">
         <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted">
-          {metric.label}
+          {metric.label} per {scaleWord}
         </p>
         <p className="text-xs text-muted-strong tabular-nums">
           <span className="font-display text-ink text-base mr-1">
             {metric.format(latestValue)}
           </span>
-          this week
+          this {scaleWord}
         </p>
       </div>
       <div className="h-24 -mx-1">
@@ -117,7 +132,7 @@ function ChartCard({ metric, buckets }: { metric: Metric; buckets: WeeklyBucket[
                 fontSize: '10px',
                 marginBottom: '2px',
               }}
-              labelFormatter={(label) => `Week of ${label}`}
+              labelFormatter={(label) => String(label)}
               formatter={(value) => {
                 const n = typeof value === 'number' ? value : Number(value);
                 return [`${metric.format(n)} ${metric.unit}`, ''] as [string, string];
@@ -127,7 +142,7 @@ function ChartCard({ metric, buckets }: { metric: Metric; buckets: WeeklyBucket[
             <Bar dataKey="value" radius={[3, 3, 0, 0]} maxBarSize={28}>
               {data.map((d, i) => (
                 <Cell
-                  key={d.weekStart}
+                  key={d.bucketKey}
                   fill={
                     i === data.length - 1
                       ? 'rgb(var(--accent))'
