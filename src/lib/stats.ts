@@ -1,5 +1,5 @@
 import type { Set } from '@/lib/supabase';
-import { dayKeyInTz } from '@/lib/timezone';
+import { dayKeyInTz, formatLocal } from '@/lib/timezone';
 
 export type LifetimeTotals = {
   totalVolume: number;     // sum(weight × reps) — "lbs moved"
@@ -112,6 +112,104 @@ export function progressionFor(
       reps: v.reps,
     }))
     .sort((a, b) => a.ts - b.ts);
+}
+
+export type WeeklyBucket = {
+  weekStart: string;       // 'YYYY-MM-DD' Monday in gym TZ
+  weekLabel: string;       // 'Apr 28' (Monday short label)
+  setCount: number;
+  totalVolume: number;     // sum(weight × reps), strength only
+  workoutDays: number;     // distinct days in this week with at least one set
+  cardioSeconds: number;
+};
+
+/**
+ * Group sets into the last N weeks (Mon-Sun, in the gym's timezone). Returns
+ * weeks ascending — earliest first, current week last — with empty weeks
+ * zero-filled so the chart timeline reads continuously.
+ */
+export function weeklyBuckets(
+  sets: Pick<Set, 'weight' | 'reps' | 'duration_seconds' | 'logged_at'>[],
+  timezone: string,
+  weeks = 10,
+  now: Date = new Date(),
+): WeeklyBucket[] {
+  // Anchor each set to its week's Monday (in gym TZ). Reuse `dayKeyInTz` for
+  // the YYYY-MM-DD-in-TZ then walk back to Monday in plain UTC math — that's
+  // safe because day keys never include a time component.
+  const today = dayKeyInTz(now.toISOString(), timezone);
+  const todayMondayKey = mondayKey(today);
+
+  // Build list of week keys we want, oldest first.
+  const wantedWeeks: string[] = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const d = addDays(todayMondayKey, -i * 7);
+    wantedWeeks.push(d);
+  }
+  const wanted = new Set(wantedWeeks);
+
+  // Aggregate.
+  type Agg = {
+    setCount: number;
+    totalVolume: number;
+    days: globalThis.Set<string>;
+    cardioSeconds: number;
+  };
+  const byWeek = new Map<string, Agg>();
+  for (const s of sets) {
+    const day = dayKeyInTz(s.logged_at, timezone);
+    const wk = mondayKey(day);
+    if (!wanted.has(wk)) continue;
+    const cur = byWeek.get(wk) ?? {
+      setCount: 0,
+      totalVolume: 0,
+      days: new globalThis.Set<string>(),
+      cardioSeconds: 0,
+    };
+    cur.setCount += 1;
+    cur.days.add(day);
+    if (s.weight != null && s.reps != null) {
+      cur.totalVolume += Number(s.weight) * Number(s.reps);
+    }
+    if (s.duration_seconds != null) {
+      cur.cardioSeconds += Number(s.duration_seconds);
+    }
+    byWeek.set(wk, cur);
+  }
+
+  return wantedWeeks.map((weekStart) => {
+    const a = byWeek.get(weekStart);
+    return {
+      weekStart,
+      weekLabel: weekShortLabel(weekStart, timezone),
+      setCount: a?.setCount ?? 0,
+      totalVolume: Math.round(a?.totalVolume ?? 0),
+      workoutDays: a?.days.size ?? 0,
+      cardioSeconds: a?.cardioSeconds ?? 0,
+    };
+  });
+}
+
+/** YYYY-MM-DD → YYYY-MM-DD of the Monday of that ISO week. Pure date math. */
+function mondayKey(dayKey: string): string {
+  // Treat the date as noon UTC to avoid DST edge cases — we never display the
+  // time, only the YMD.
+  const d = new Date(`${dayKey}T12:00:00Z`);
+  const dow = d.getUTCDay(); // 0=Sun..6=Sat
+  const offsetToMonday = (dow + 6) % 7; // Mon=0, Sun=6
+  d.setUTCDate(d.getUTCDate() - offsetToMonday);
+  return d.toISOString().slice(0, 10);
+}
+
+function addDays(dayKey: string, days: number): string {
+  const d = new Date(`${dayKey}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function weekShortLabel(dayKey: string, timezone: string): string {
+  // Render the Monday in the gym's locale-style "Apr 28".
+  return formatLocal(`${dayKey}T12:00:00Z`, timezone, 'MMM d');
 }
 
 /**

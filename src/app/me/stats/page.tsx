@@ -5,19 +5,22 @@ import { supabase } from '@/lib/supabase';
 import {
   lifetimeTotals,
   weeklyStreak,
+  weeklyBuckets,
   prFor,
   progressionFor,
-  type ProgressionPoint,
-  type PR,
 } from '@/lib/stats';
-import { cardioBest, formatDuration, formatMiles, type CardioBest } from '@/lib/cardio';
-import { Sparkline } from './Sparkline';
+import { cardioBest } from '@/lib/cardio';
+import { MemberStatsClient } from './MemberStatsClient';
+import type { MachineStat, ExerciseStat } from './MachineCardsView';
+import type { MemberStatRow } from '@/lib/member-stats-columns';
 import type { GymTheme } from '@/app/scan/[qrSlug]/page';
 import type { EquipmentType } from '@/lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
 const COOKIE_NAME = 'reptag_member_id';
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
 type SetRow = {
   weight: number | null;
@@ -33,26 +36,6 @@ type SetRow = {
     machine_label: string | null;
     equipment_type: EquipmentType;
   } | null;
-};
-
-type ExerciseStat = {
-  name: string | null; // null = single-type bucket
-  setCount: number;
-  pr: PR;
-  lastLogged: string | null;
-};
-
-type MachineStat = {
-  id: string;
-  name: string;
-  label: string | null;
-  equipmentType: EquipmentType;
-  setCount: number;
-  pr: PR;
-  progression: ProgressionPoint[];
-  lastLogged: string | null;
-  exercises: ExerciseStat[]; // only populated for strength_multi
-  cardio: CardioBest | null; // only populated for cardio
 };
 
 export default async function MyStatsPage() {
@@ -92,7 +75,10 @@ export default async function MyStatsPage() {
   const sets = setsRaw ?? [];
   const totals = lifetimeTotals(sets, timezone);
   const streak = weeklyStreak(sets, timezone);
+  const buckets = weeklyBuckets(sets, timezone, 10);
+  const hasCardio = sets.some((s) => s.duration_seconds != null);
 
+  // Group all sets by equipment for the cards view shape.
   const byEquipment = new Map<
     string,
     {
@@ -121,7 +107,7 @@ export default async function MyStatsPage() {
       const progression = progressionFor(group.sets, timezone);
 
       let exercises: ExerciseStat[] = [];
-      let cardio: CardioBest | null = null;
+      let cardio = null;
 
       if (group.equipmentType === 'strength_multi') {
         const byEx = new Map<string, SetRow[]>();
@@ -161,6 +147,44 @@ export default async function MyStatsPage() {
     })
     .sort((a, b) => (a.lastLogged && b.lastLogged ? (a.lastLogged < b.lastLogged ? 1 : -1) : 0));
 
+  // Fan out into one row per equipment×exercise for the table view.
+  const now = Date.now();
+  const rows: MemberStatRow[] = [];
+  for (const [id, group] of byEquipment.entries()) {
+    if (group.equipmentType === 'strength_multi') {
+      const byEx = new Map<string, SetRow[]>();
+      for (const s of group.sets) {
+        const key = s.exercise_name ?? '__unlabeled__';
+        if (!byEx.has(key)) byEx.set(key, []);
+        byEx.get(key)!.push(s);
+      }
+      for (const [exKey, exSets] of byEx.entries()) {
+        const exerciseName = exKey === '__unlabeled__' ? null : exKey;
+        rows.push(rowFromSets({
+          rowId: `${id}::${exKey}`,
+          equipmentId: id,
+          name: group.name,
+          label: group.label,
+          equipmentType: group.equipmentType,
+          exerciseName,
+          sets: exSets,
+          now,
+        }));
+      }
+    } else {
+      rows.push(rowFromSets({
+        rowId: id,
+        equipmentId: id,
+        name: group.name,
+        label: group.label,
+        equipmentType: group.equipmentType,
+        exerciseName: null,
+        sets: group.sets,
+        now,
+      }));
+    }
+  }
+
   return (
     <div data-theme={theme} className="min-h-screen bg-canvas text-ink">
       <main className="p-6 max-w-2xl mx-auto pb-20">
@@ -186,29 +210,12 @@ export default async function MyStatsPage() {
           <Stat label="Total sets" value={String(totals.totalSets)} sub="all time" />
         </section>
 
-        <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-3">
-          Per-machine
-        </h2>
-
-        {machines.length === 0 ? (
-          <p className="text-sm text-muted">
-            No sets logged yet. Scan a QR sticker to get started.
-          </p>
-        ) : (
-          <ul className="space-y-3">
-            {machines.map((m) => (
-              <li key={m.id}>
-                {m.equipmentType === 'cardio' ? (
-                  <CardioMachineCard machine={m} />
-                ) : m.equipmentType === 'strength_multi' ? (
-                  <MultiMachineCard machine={m} />
-                ) : (
-                  <SingleMachineCard machine={m} />
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
+        <MemberStatsClient
+          machines={machines}
+          rows={rows}
+          buckets={buckets}
+          hasCardio={hasCardio}
+        />
 
         <p className="mt-10 text-center">
           <Link href="/scan" className="text-sm underline text-muted">
@@ -220,130 +227,56 @@ export default async function MyStatsPage() {
   );
 }
 
-function SingleMachineCard({ machine }: { machine: MachineStat }) {
-  return (
-    <Link
-      href={`/me/stats/${machine.id}`}
-      className="block p-4 rounded-card bg-surface border border-line hover:border-muted transition"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="font-medium">{machine.name}</p>
-          <p className="text-xs text-muted">
-            {[machine.label, `${machine.setCount} sets`].filter(Boolean).join(' · ')}
-          </p>
-          {machine.pr && (
-            <p className="text-sm text-muted-strong mt-2 tabular-nums">
-              PR{' '}
-              <span className="font-semibold text-ink">
-                {fmtWeight(machine.pr.weight)} × {machine.pr.reps}
-              </span>
-            </p>
-          )}
-        </div>
-        <Sparkline points={machine.progression.map((p) => p.weight)} />
-      </div>
-    </Link>
-  );
-}
+function rowFromSets(input: {
+  rowId: string;
+  equipmentId: string;
+  name: string;
+  label: string | null;
+  equipmentType: EquipmentType;
+  exerciseName: string | null;
+  sets: SetRow[];
+  now: number;
+}): MemberStatRow {
+  const pr = prFor(input.sets);
+  let totalVolume = 0;
+  let weekSetCount = 0;
+  let monthSetCount = 0;
+  let lastLoggedAt: string | null = null;
+  for (const s of input.sets) {
+    if (s.weight != null && s.reps != null) {
+      totalVolume += Number(s.weight) * Number(s.reps);
+    }
+    const t = new Date(s.logged_at).getTime();
+    if (input.now - t <= WEEK_MS) weekSetCount += 1;
+    if (input.now - t <= MONTH_MS) monthSetCount += 1;
+    if (!lastLoggedAt || s.logged_at > lastLoggedAt) lastLoggedAt = s.logged_at;
+  }
 
-function CardioMachineCard({ machine }: { machine: MachineStat }) {
-  const c = machine.cardio;
-  return (
-    <Link
-      href={`/me/stats/${machine.id}`}
-      className="block p-4 rounded-card bg-surface border border-line hover:border-muted transition"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="font-medium">
-            {machine.name}
-            <span className="ml-2 text-[10px] font-mono uppercase tracking-[0.15em] px-1.5 py-0.5 rounded bg-line text-muted-strong align-middle">
-              Cardio
-            </span>
-          </p>
-          <p className="text-xs text-muted">
-            {[machine.label, `${machine.setCount} ${machine.setCount === 1 ? 'session' : 'sessions'}`]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-          {c && c.longestDurationSeconds > 0 && (
-            <p className="text-sm text-muted-strong mt-2 tabular-nums">
-              Longest{' '}
-              <span className="font-semibold text-ink">
-                {formatDuration(c.longestDurationSeconds)}
-              </span>
-              {c.longestDistanceMeters > 0 && (
-                <>
-                  {' · '}
-                  <span className="font-semibold text-ink">
-                    {formatMiles(c.longestDistanceMeters)} mi
-                  </span>
-                </>
-              )}
-            </p>
-          )}
-        </div>
-      </div>
-    </Link>
-  );
-}
+  let longestCardioSeconds = 0;
+  let longestCardioMeters = 0;
+  if (input.equipmentType === 'cardio') {
+    const best = cardioBest(input.sets);
+    longestCardioSeconds = best.longestDurationSeconds;
+    longestCardioMeters = best.longestDistanceMeters;
+  }
 
-function MultiMachineCard({ machine }: { machine: MachineStat }) {
-  return (
-    <div className="p-4 rounded-card bg-surface border border-line">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="font-medium">
-            {machine.name}
-            <span className="ml-2 text-[10px] font-mono uppercase tracking-[0.15em] px-1.5 py-0.5 rounded bg-line text-muted-strong align-middle">
-              Multi
-            </span>
-          </p>
-          <p className="text-xs text-muted">
-            {[machine.label, `${machine.setCount} sets across ${machine.exercises.length} exercises`]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-        </div>
-      </div>
-
-      <ul className="mt-3 divide-y divide-line">
-        {machine.exercises.map((ex) => {
-          const exHref = ex.name
-            ? `/me/stats/${machine.id}?exercise=${encodeURIComponent(ex.name)}`
-            : `/me/stats/${machine.id}`;
-          return (
-            <li key={ex.name ?? '(unlabeled)'}>
-              <Link
-                href={exHref}
-                className="flex items-center justify-between gap-4 py-2 hover:opacity-80 transition"
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {ex.name ?? '(unlabeled)'}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {ex.setCount} {ex.setCount === 1 ? 'set' : 'sets'}
-                  </p>
-                </div>
-                {ex.pr ? (
-                  <p className="text-sm tabular-nums shrink-0">
-                    <span className="text-muted text-xs">PR </span>
-                    <span className="font-semibold">
-                      {fmtWeight(ex.pr.weight)} × {ex.pr.reps}
-                    </span>
-                  </p>
-                ) : (
-                  <span className="text-xs text-muted">no PR yet</span>
-                )}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
+  return {
+    id: input.rowId,
+    equipmentId: input.equipmentId,
+    machineName: input.name,
+    machineLabel: input.label,
+    equipmentType: input.equipmentType,
+    exerciseName: input.exerciseName,
+    setCount: input.sets.length,
+    prWeight: pr?.weight ?? null,
+    prReps: pr?.reps ?? null,
+    lastLoggedAt,
+    totalVolume,
+    longestCardioSeconds,
+    longestCardioMeters,
+    weekSetCount,
+    monthSetCount,
+  };
 }
 
 function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
@@ -388,8 +321,4 @@ function fmtVol(n: number): string {
   if (n >= 10_000) return `${(n / 1_000).toFixed(0)}k`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
   return String(n);
-}
-
-function fmtWeight(w: number): string {
-  return Number.isInteger(w) ? String(w) : w.toFixed(1);
 }

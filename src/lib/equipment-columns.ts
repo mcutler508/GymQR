@@ -259,7 +259,7 @@ function pickLatest(a: string | null, b: string | null): string | null {
   return new Date(a).getTime() >= new Date(b).getTime() ? a : b;
 }
 
-function formatThousands(n: number): string {
+export function formatThousands(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 10_000) return `${(n / 1_000).toFixed(0)}k`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
