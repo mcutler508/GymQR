@@ -261,6 +261,12 @@ html, body {
   pointer-events: none;
 }
 
+/* Custom-set <details> on the scan page: hide the default disclosure
+   triangle/marker so our own +/- icon is the only chrome. Scoped to a class
+   so we don't strip markers globally. */
+.custom-set > summary { list-style: none; }
+.custom-set > summary::-webkit-details-marker { display: none; }
+
 /* Print styles for the QR sticker page.
    When printing, hide everything except the .sticker container. */
 @media print {

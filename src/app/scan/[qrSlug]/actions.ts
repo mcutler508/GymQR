@@ -4,6 +4,7 @@ import { cookies, headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
 import { createMember, signInMember, setPasscode } from '@/lib/auth-member';
+import { detectPRs, type PRFlags } from '@/lib/stats';
 
 const COOKIE_NAME = 'reptag_member_id';
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -63,6 +64,10 @@ export async function setPasscodeAction(input: { passcode: string }): Promise<vo
   await setPasscode({ memberId, passcode: input.passcode });
 }
 
+export type LogSetResult = {
+  prs: PRFlags;
+};
+
 export async function logSet(input: {
   equipmentId: string;
   gymId: string;
@@ -74,7 +79,7 @@ export async function logSet(input: {
   durationSeconds?: number | null;
   distanceMeters?: number | null;
   qrSlug: string;
-}): Promise<void> {
+}): Promise<LogSetResult> {
   const store = await cookies();
   const memberId = store.get(COOKIE_NAME)?.value;
   if (!memberId) throw new Error('Not identified');
@@ -116,7 +121,7 @@ export async function logSet(input: {
     });
     if (error) throw new Error(error.message);
     revalidatePath(`/scan/${input.qrSlug}`);
-    return;
+    return { prs: { maxWeight: false, maxVolume: false, bestRepsAtWeight: false } };
   }
 
   // Strength path (single or multi).
@@ -137,6 +142,20 @@ export async function logSet(input: {
   }
   // strength_single: ignore any client-sent exerciseName.
 
+  // PR detection: pull this member's prior sets for this equipment (and
+  // exercise, if multi) BEFORE inserting. One small query, scoped tightly.
+  let priorQuery = supabase
+    .from('sets')
+    .select('weight, reps')
+    .eq('member_id', memberId)
+    .eq('equipment_id', input.equipmentId)
+    .not('weight', 'is', null)
+    .not('reps', 'is', null);
+  if (exerciseName) {
+    priorQuery = priorQuery.eq('exercise_name', exerciseName);
+  }
+  const { data: prior } = await priorQuery;
+
   const { error } = await supabase.from('sets').insert({
     member_id: memberId,
     equipment_id: input.equipmentId,
@@ -150,7 +169,10 @@ export async function logSet(input: {
 
   if (error) throw new Error(error.message);
 
+  const prs = detectPRs(prior ?? [], { weight: w, reps: r });
+
   revalidatePath(`/scan/${input.qrSlug}`);
+  return { prs };
 }
 
 // A "scan" should mean a real arrival at the machine — one row per engagement,

@@ -78,6 +78,43 @@ export function prFor(sets: Pick<Set, 'weight' | 'reps' | 'logged_at'>[]): PR {
   };
 }
 
+export type PRFlags = {
+  maxWeight: boolean;        // strictly heavier than any prior set
+  maxVolume: boolean;        // weight × reps strictly higher than any prior set
+  bestRepsAtWeight: boolean; // strictly more reps than any prior set at the same weight
+};
+
+/**
+ * Compare a candidate set against the member's prior sets on this
+ * equipment+exercise. All three checks are *strict* — tying a previous best
+ * does not count. `prior` should NOT include the candidate.
+ */
+export function detectPRs(
+  prior: Pick<Set, 'weight' | 'reps'>[],
+  candidate: { weight: number; reps: number },
+): PRFlags {
+  const w = candidate.weight;
+  const r = candidate.reps;
+  const v = w * r;
+  let maxWeight = true;
+  let maxVolume = true;
+  let bestRepsAtWeight = true;
+  for (const s of prior) {
+    if (s.weight == null || s.reps == null) continue;
+    const pw = Number(s.weight);
+    const pr = Number(s.reps);
+    if (pw >= w) maxWeight = false;
+    if (pw * pr >= v) maxVolume = false;
+    if (pw === w && pr >= r) bestRepsAtWeight = false;
+  }
+  // First-ever set: no prior comparable rows. Don't celebrate "PRs" on row #1.
+  const hasPrior = prior.some((s) => s.weight != null && s.reps != null);
+  if (!hasPrior) {
+    return { maxWeight: false, maxVolume: false, bestRepsAtWeight: false };
+  }
+  return { maxWeight, maxVolume, bestRepsAtWeight };
+}
+
 export type ProgressionPoint = {
   day: string;        // 'YYYY-MM-DD' in gym timezone
   ts: number;         // ms epoch — useful for chart x-axis

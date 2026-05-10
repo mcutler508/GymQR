@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 type Status = 'init' | 'requesting' | 'scanning' | 'detected' | 'denied' | 'error';
 
-export function Scanner() {
+export function Scanner({ showManualLink = false }: { showManualLink?: boolean }) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -175,6 +176,15 @@ export function Scanner() {
           {status === 'detected' ? 'Got it. Loading…' : 'Hold steady — it auto-detects.'}
         </p>
 
+        {showManualLink && (
+          <Link
+            href="/scan/manual"
+            className="mt-8 block w-full text-center text-sm text-muted-strong underline"
+          >
+            Type the machine name instead →
+          </Link>
+        )}
+
         <button
           type="button"
           onClick={() => {
@@ -188,7 +198,7 @@ export function Scanner() {
               router.push('/me/stats');
             }
           }}
-          className="mt-8 block w-full text-center text-sm text-muted underline"
+          className={`${showManualLink ? 'mt-4' : 'mt-8'} block w-full text-center text-sm text-muted underline`}
         >
           Cancel
         </button>

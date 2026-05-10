@@ -4,7 +4,13 @@ import { useEffect, useMemo, useState, useTransition, type FormEvent } from 'rea
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import type { Equipment, Set } from '@/lib/supabase';
-import { describeSuggestion, suggestTarget, type Suggestion } from '@/lib/suggested-target';
+import {
+  describeSuggestion,
+  presetsFor,
+  suggestTarget,
+  type Preset,
+  type Suggestion,
+} from '@/lib/suggested-target';
 import {
   describeCardioSuggestion,
   formatDuration,
@@ -22,6 +28,7 @@ import {
   setPasscodeAction,
   logSet,
   signOutMember,
+  type LogSetResult,
 } from './actions';
 
 type Session = { startedAt: string; endedAt: string; sets: Set[] };
@@ -301,13 +308,25 @@ function LogView({
   const lastSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
   const recentSessions = useMemo<Session[]>(() => [...sessions].reverse(), [sessions]);
 
-  const suggestion = useMemo<Suggestion>(() => {
-    const lastSet = filteredSets[0];
-    if (!lastSet || lastSet.weight == null || lastSet.reps == null) {
-      return suggestTarget(undefined);
-    }
-    return suggestTarget({ weight: Number(lastSet.weight), reps: Number(lastSet.reps) });
-  }, [filteredSets]);
+  const lastSet = filteredSets[0];
+  const lastWR =
+    lastSet && lastSet.weight != null && lastSet.reps != null
+      ? { weight: Number(lastSet.weight), reps: Number(lastSet.reps) }
+      : undefined;
+
+  const suggestion = useMemo<Suggestion>(
+    () => suggestTarget(lastWR),
+    // suggestion is derived from lastWR, but lastWR is recomputed every render;
+    // depend on the underlying filtered sets so the value is stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filteredSets],
+  );
+
+  const presets = useMemo<Preset[] | null>(
+    () => presetsFor(lastWR),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filteredSets],
+  );
 
   const [weight, setWeight] = useState<string>(
     suggestion.kind === 'first-time' ? '' : String(suggestion.weight),
@@ -316,8 +335,8 @@ function LogView({
     suggestion.kind === 'first-time' ? '' : String(suggestion.reps),
   );
 
-  // When the member taps a different exercise chip, refresh the inputs to that
-  // exercise's suggested target so the form matches the suggestion above it.
+  // When the member taps a different exercise chip, refresh the custom-set
+  // inputs to that exercise's suggested target.
   useEffect(() => {
     if (suggestion.kind === 'first-time') {
       setWeight('');
@@ -332,19 +351,25 @@ function LogView({
 
   const [pending, startTransition] = useTransition();
   const [err, setErr] = useState<string | null>(null);
-  const [justLogged, setJustLogged] = useState(false);
+  const [result, setResult] = useState<LogSetResult | null>(null);
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  // Clear the PR/success banner after a few seconds so it doesn't linger
+  // over the next set.
+  useEffect(() => {
+    if (!result) return;
+    const t = setTimeout(() => setResult(null), 6000);
+    return () => clearTimeout(t);
+  }, [result]);
+
+  function submitSet(w: number, r: number) {
+    if (pending) return;
     setErr(null);
     if (isMulti && !selectedExercise) return setErr('Pick an exercise first.');
-    const w = Number(weight);
-    const r = Number(reps);
     if (!Number.isFinite(w) || w <= 0) return setErr('Enter a valid weight.');
     if (!Number.isInteger(r) || r <= 0) return setErr('Enter a valid rep count.');
     startTransition(async () => {
       try {
-        await logSet({
+        const res = await logSet({
           equipmentId: equipment.id,
           gymId: equipment.gym_id,
           weight: w,
@@ -352,12 +377,17 @@ function LogView({
           exerciseName: isMulti ? selectedExercise : null,
           qrSlug: equipment.qr_slug,
         });
-        setJustLogged(true);
+        setResult(res);
         router.refresh();
       } catch (e) {
         setErr(e instanceof Error ? e.message : 'Could not save set');
       }
     });
+  }
+
+  function onCustomSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    submitSet(Number(weight), Number(reps));
   }
 
   function onSignOut() {
@@ -436,19 +466,39 @@ function LogView({
         <SuggestedNum suggestion={suggestion} />
       </section>
 
-      <form onSubmit={onSubmit} className="mt-6 space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <NumericInput label="Weight" value={weight} onChange={setWeight} mode="decimal" />
-          <NumericInput label="Reps" value={reps} onChange={setReps} mode="numeric" />
+      {presets ? (
+        <div className="mt-6 space-y-2">
+          {presets.map((p) => (
+            <PresetButton
+              key={p.kind}
+              preset={p}
+              disabled={pending}
+              onTap={() => submitSet(p.weight, p.reps)}
+            />
+          ))}
         </div>
-        <PrimaryButton type="submit" disabled={pending} large>
-          {pending ? 'Saving…' : 'Save Set'}
-        </PrimaryButton>
-        {err && <p className="text-sm text-red-400">{err}</p>}
-        {justLogged && !pending && !err && (
-          <p className="text-sm text-emerald-400">Set saved.</p>
-        )}
-      </form>
+      ) : null}
+
+      <details className="custom-set mt-4 rounded-card bg-surface border border-line" open={!presets}>
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm text-muted-strong flex items-center justify-between">
+          <span>{presets ? 'Custom set' : 'Log your first set'}</span>
+          <span aria-hidden className="text-muted">+</span>
+        </summary>
+        <form onSubmit={onCustomSubmit} className="px-4 pb-4 pt-1 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <NumericInput label="Weight" value={weight} onChange={setWeight} mode="decimal" />
+            <NumericInput label="Reps" value={reps} onChange={setReps} mode="numeric" />
+          </div>
+          <PrimaryButton type="submit" disabled={pending} large>
+            {pending ? 'Saving…' : 'Save Set'}
+          </PrimaryButton>
+        </form>
+      </details>
+
+      {err && <p className="mt-3 text-sm text-red-400">{err}</p>}
+      {result && !pending && !err && (
+        <SaveBanner result={result} />
+      )}
 
       <section className="mt-6 flex gap-3">
         <Link
@@ -867,6 +917,67 @@ function describeSubLabel(s: Suggestion): string {
   if (s.kind === 'increase-weight') return 'Add five, hold reps. Chase the PR.';
   if (s.kind === 'add-rep') return 'Same weight, push for one more.';
   return '';
+}
+
+function PresetButton({
+  preset,
+  disabled,
+  onTap,
+}: {
+  preset: Preset;
+  disabled: boolean;
+  onTap: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onTap}
+      disabled={disabled}
+      className={[
+        'w-full flex items-center justify-between gap-3 px-5 py-4 rounded-card',
+        'bg-surface border border-line text-ink transition disabled:opacity-50',
+        'hover:border-accent active:scale-[0.99]',
+        'concrete:font-black concrete:uppercase concrete:tracking-[0.04em]',
+        'athletic:font-black athletic:italic athletic:uppercase athletic:tracking-[0.03em]',
+      ].join(' ')}
+    >
+      <span className="text-base font-medium">{preset.label}</span>
+      <span className="font-display text-2xl tabular-nums text-accent">
+        {fmtWeight(preset.weight)} <span className="text-muted text-base">×</span> {preset.reps}
+      </span>
+    </button>
+  );
+}
+
+function SaveBanner({ result }: { result: LogSetResult }) {
+  const prs = result.prs;
+  const labels: string[] = [];
+  if (prs.maxWeight) labels.push('Heaviest Set');
+  if (prs.maxVolume) labels.push('Top Volume');
+  if (prs.bestRepsAtWeight) labels.push('Most Reps at Weight');
+  const isPR = labels.length > 0;
+  return (
+    <div
+      role="status"
+      className={[
+        'mt-4 px-4 py-3 rounded-card border text-sm',
+        isPR
+          ? 'bg-accent text-accent-ink border-accent font-semibold'
+          : 'bg-surface border-line text-emerald-400',
+      ].join(' ')}
+    >
+      {isPR ? (
+        <>
+          <span className="font-mono uppercase tracking-[0.18em] text-[10px] block mb-1">
+            New PR
+          </span>
+          <span className="text-base">{labels.join(' · ')}</span>
+        </>
+      ) : (
+        'Set saved.'
+      )}
+    </div>
+  );
 }
 
 function PrimaryButton({

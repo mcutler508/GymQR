@@ -25,7 +25,7 @@ export default async function ScanRootPage() {
 
   return (
     <div data-theme={theme} className="min-h-screen bg-canvas text-ink">
-      <Scanner />
+      <Scanner showManualLink={!!memberId} />
     </div>
   );
 }
