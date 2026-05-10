@@ -69,7 +69,10 @@ export function AuthShell({
             <div className="font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500">
               {kicker}
             </div>
-            <h1 className="mt-6 font-display font-light leading-[0.92] tracking-tight text-white text-[clamp(3rem,8vw,6rem)]">
+            <h1
+              className="mt-6 font-display font-light leading-[0.92] tracking-tight text-white"
+              style={{ fontSize: 'clamp(3rem, 8vw, 6rem)' }}
+            >
               {title}
               {flourish && (
                 <>
