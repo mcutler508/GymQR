@@ -45,8 +45,8 @@ export function ComparisonTable() {
           <div className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
             Feature
           </div>
-          <div className="ring-gradient relative -my-2 -mx-2 rounded-card bg-canvas/60 px-3 py-2 text-center font-display text-lg text-ink">
-            RepTag
+          <div className="ring-gradient relative -my-2 -mx-2 rounded-card bg-canvas/60 px-3 py-2 text-center font-display text-lg lowercase text-ink">
+            repetoIQ
           </div>
           <div className="text-center font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
             Spreadsheet

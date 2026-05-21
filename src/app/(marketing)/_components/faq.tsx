@@ -5,7 +5,7 @@ const QUESTIONS = [
   },
   {
     q: 'Do I need to buy hardware or screens?',
-    a: 'No. RepTag prints to a standard label sheet from any inkjet. The phone in the member’s pocket is the entire interface.',
+    a: 'No. RepetoIQ prints to a standard label sheet from any inkjet. The phone in the member’s pocket is the entire interface.',
   },
   {
     q: 'Can owners see individual members’ lifts?',

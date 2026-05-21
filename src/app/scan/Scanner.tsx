@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 type Status = 'init' | 'requesting' | 'scanning' | 'detected' | 'denied' | 'error';
@@ -145,7 +146,15 @@ export function Scanner() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center">
       <div className="w-full max-w-md p-4">
-        <header className="mb-4 text-center">
+        <header className="mb-4 flex flex-col items-center text-center">
+          <Image
+            src="/repetoIQicon.png"
+            alt="repetoIQ"
+            width={64}
+            height={64}
+            priority
+            className="mb-2 h-16 w-16"
+          />
           <h1 className="text-xl font-semibold">Scan a machine</h1>
           <p className="text-sm text-muted mt-1">Point at the QR sticker.</p>
         </header>
@@ -235,7 +244,7 @@ function CameraError({ message }: { message: string | null }) {
 
 /**
  * Extract a slug from whatever the QR encoded. We accept:
- * - A full URL like `https://reptag.vercel.app/scan/leg-press-04-a8f3`
+ * - A full URL like `https://repetoiq.vercel.app/scan/leg-press-04-a8f3`
  * - A relative path like `/scan/leg-press-04-a8f3`
  * - A bare slug
  *

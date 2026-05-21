@@ -128,7 +128,7 @@ export default async function OwnerDashboard() {
       </section>
 
       <footer className="flex items-center justify-between border-t border-white/10 pt-6 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">
-        <span>RepTag &middot; Central Command</span>
+        <span>repetoIQ &middot; Central Command</span>
         <span>{dateStamp}</span>
       </footer>
     </div>

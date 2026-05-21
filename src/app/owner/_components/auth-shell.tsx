@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
@@ -57,8 +58,16 @@ export function AuthShell({
         {/* ── Brand / editorial panel ────────────────────────────── */}
         <aside className="relative flex flex-col justify-between border-b border-white/10 px-8 py-12 sm:px-16 lg:border-b-0 lg:border-r lg:py-16">
           <div className="flex items-center justify-between">
-            <Link href="/" className="font-display text-2xl tracking-tight">
-              RepTag
+            <Link href="/" className="flex items-center gap-3">
+              <Image
+                src="/repetoIQicon.png"
+                alt="repetoIQ"
+                width={44}
+                height={44}
+                priority
+                className="h-11 w-11"
+              />
+              <span className="font-display text-2xl tracking-tight lowercase">repetoIQ</span>
             </Link>
             <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500">
               Est. 2026

@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
 import { getServerClient } from '@/lib/supabase-server';
 import { signOutOwner } from '../actions';
@@ -44,9 +45,17 @@ export default async function GatedOwnerLayout({
       <header className="sticky top-0 z-30 border-b border-white/10 bg-black/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-6 py-5">
           <div className="flex items-baseline gap-6">
-            <Link href="/owner" className="group flex items-baseline gap-3">
+            <Link href="/owner" className="group flex items-center gap-3">
+              <Image
+                src="/repetoIQicon.png"
+                alt="repetoIQ"
+                width={40}
+                height={40}
+                priority
+                className="h-10 w-10"
+              />
               <span className="font-display text-xl tracking-tight">
-                {gym?.name ?? 'RepTag'}
+                {gym?.name ?? 'repetoIQ'}
               </span>
               <span className="hidden font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500 sm:inline">
                 Central Command

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import Link from 'next/link';
 import type { Equipment, Set } from '@/lib/supabase';
 import { describeSuggestion, suggestTarget, type Suggestion } from '@/lib/suggested-target';
@@ -800,6 +801,16 @@ function NumericInputBare({
 function Header({ equipment, gymName }: { equipment: Equipment; gymName: string }) {
   return (
     <header className="pt-2">
+      <div className="mb-4 flex items-center gap-2">
+        <Image
+          src="/repetoIQicon.png"
+          alt="repetoIQ"
+          width={32}
+          height={32}
+          className="h-8 w-8"
+        />
+        <span className="font-display text-sm tracking-tight lowercase text-muted">repetoIQ</span>
+      </div>
       <h1
         className={[
           'font-display tracking-tight leading-none',

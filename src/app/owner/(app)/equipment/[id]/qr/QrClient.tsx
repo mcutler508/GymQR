@@ -118,7 +118,7 @@ export function QrClient({
   async function downloadPng() {
     if (!qrRef.current) return;
     await qrRef.current.download({
-      name: `reptag-${equipment.qr_slug}`,
+      name: `repetoiq-${equipment.qr_slug}`,
       extension: 'png',
     });
   }
@@ -126,7 +126,7 @@ export function QrClient({
   async function downloadSvg() {
     if (!qrRef.current) return;
     await qrRef.current.download({
-      name: `reptag-${equipment.qr_slug}`,
+      name: `repetoiq-${equipment.qr_slug}`,
       extension: 'svg',
     });
   }
@@ -216,6 +216,11 @@ export function QrClient({
             {trimmedTagline}
           </p>
         )}
+        <div className="mt-5 flex items-center gap-2 opacity-70">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/repetoIQicon.png" alt="repetoIQ" className="h-5 w-5" style={{ filter: 'invert(1)' }} />
+          <span className="font-display text-xs lowercase tracking-tight text-neutral-700">repetoIQ</span>
+        </div>
       </div>
     </div>
   );

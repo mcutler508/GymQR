@@ -1,4 +1,4 @@
-# RepTag — QR Gym Demo MVP
+# RepetoIQ — QR Gym Demo MVP
 
 Print one QR sticker, walk it into a gym, demo the scan-to-log loop on a phone.
 
@@ -46,8 +46,8 @@ The QR has to resolve on cellular at the gym, so it needs to be live somewhere.
 1. Push to GitHub: `git remote add origin ...`, `git push -u origin master`.
 2. Import the repo at vercel.com.
 3. In Vercel project settings → Environment Variables, paste the same `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from `.env.local`.
-4. Deploy. Vercel gives you a URL like `https://reptag.vercel.app`.
-5. Add `NEXT_PUBLIC_APP_URL=https://reptag.vercel.app` to Vercel env vars and redeploy. (This is what the QR encodes — without it the printed QR will point at the wrong host.)
+4. Deploy. Vercel gives you a URL like `https://repetoiq.vercel.app`.
+5. Add `NEXT_PUBLIC_APP_URL=https://repetoiq.vercel.app` to Vercel env vars and redeploy. (This is what the QR encodes — without it the printed QR will point at the wrong host.)
 6. Visit `https://<your-vercel-url>/` → click **Print QR** on the seeded equipment → print.
 
 ## Demo dry-run

@@ -3,7 +3,7 @@ import './globals.css';
 import { allFontVariables, inter } from '@/lib/fonts';
 
 export const metadata: Metadata = {
-  title: 'RepTag — Your gym remembers your lifts',
+  title: 'RepetoIQ — Your gym remembers your lifts',
   description: 'Scan equipment, see your last lift, log a new set.',
 };
 

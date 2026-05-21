@@ -77,7 +77,9 @@ Migrations applied to Supabase: `0001_init.sql`, `0002_v2_schema.sql`, `0003_own
 3. `qr_gym_mvp_planning_doc_v2.md` for the long-term vision.
 4. `C:\Users\mcutl\.claude\plans\i-want-an-mvp-twinkly-cloud.md` for the v2 plan that produced this state.
 
-## Product (RepTag / QR Gym)
+## Product (RepetoIQ — formerly RepTag / QR Gym)
+
+The brand is **RepetoIQ** (wordmark: `repetoIQ`). Internal identifiers that still reference the old name (`reptag_member_id` cookie, `reptag_*` localStorage keys, `repetag` in legacy migrations) are intentionally left intact to avoid breaking sessions and stored preferences. Treat them as legacy implementation details, not branding.
 
 A web-based gym equipment tracker. Members scan a QR sticker on a machine, see *their own* lift history for that exact piece of equipment, log a new set, and move on.
 

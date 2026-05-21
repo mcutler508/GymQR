@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { supabase, type Set, type EquipmentType } from '@/lib/supabase';
@@ -40,7 +41,14 @@ export default async function ScanPage({
   if (error) {
     return (
       <main className="p-6 max-w-md mx-auto text-center bg-canvas text-ink min-h-screen">
-        <h1 className="text-xl font-semibold mb-2 mt-12">Something went wrong</h1>
+        <Image
+          src="/repetoIQicon.png"
+          alt="repetoIQ"
+          width={64}
+          height={64}
+          className="mx-auto mt-12 mb-4 h-16 w-16"
+        />
+        <h1 className="text-xl font-semibold mb-2">Something went wrong</h1>
         <p className="text-muted text-sm">{error.message}</p>
       </main>
     );
@@ -54,6 +62,13 @@ export default async function ScanPage({
     return (
       <div data-theme={theme} className="min-h-screen bg-canvas text-ink">
         <main className="p-6 max-w-md mx-auto text-center pt-16">
+          <Image
+            src="/repetoIQicon.png"
+            alt="repetoIQ"
+            width={64}
+            height={64}
+            className="mx-auto mb-4 h-16 w-16"
+          />
           <h1 className="text-xl font-semibold mb-2">Equipment unavailable</h1>
           <p className="text-muted text-sm">
             This machine is offline. Ask a staff member if it should be active.

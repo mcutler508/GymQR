@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
@@ -43,6 +44,13 @@ export default async function MachineStatsPage({
   if (!memberId) {
     return (
       <main className="p-6 max-w-md mx-auto text-center bg-canvas text-ink min-h-screen pt-16">
+        <Image
+          src="/repetoIQicon.png"
+          alt="repetoIQ"
+          width={64}
+          height={64}
+          className="mx-auto mb-4 h-16 w-16"
+        />
         <h1 className="text-xl font-semibold mb-2">Sign in first</h1>
         <p className="text-muted text-sm mb-6">
           Scan a sticker to identify yourself, then come back.
@@ -110,6 +118,16 @@ export default async function MachineStatsPage({
   return (
     <div data-theme={theme} className="min-h-screen bg-canvas text-ink">
       <main className="p-6 max-w-2xl mx-auto pb-20">
+        <div className="mb-6 flex items-center gap-2">
+          <Image
+            src="/repetoIQicon.png"
+            alt="repetoIQ"
+            width={32}
+            height={32}
+            className="h-8 w-8"
+          />
+          <span className="font-display text-sm tracking-tight lowercase text-muted">repetoIQ</span>
+        </div>
         <header className="mb-6">
           <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">Stats</p>
           <h1

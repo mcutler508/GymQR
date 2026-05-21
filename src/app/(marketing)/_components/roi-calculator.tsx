@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const SUBSCRIPTION_PRICE = 49; // $/mo, illustrative
 const STICKER_COST = 0; // print at home
-const CHURN_REDUCTION = 0.2; // RepTag reduces churn by 20% (defensible footnote on page)
+const CHURN_REDUCTION = 0.2; // RepetoIQ reduces churn by 20% (defensible footnote on page)
 const AVG_MONTHS_RETAINED = 6;
 
 function useEased(value: number, duration = 600) {
@@ -66,7 +66,7 @@ export function RoiCalculator() {
           Run your own numbers.
         </h2>
         <p className="mt-4 text-muted-strong md:text-lg">
-          Drag the sliders. RepTag pays for itself the moment a single member sticks
+          Drag the sliders. RepetoIQ pays for itself the moment a single member sticks
           around one extra month.
         </p>
       </header>

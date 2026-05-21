@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { PhoneFrame } from './phone-frame';
 import { ScanMock } from './scan-mock';
@@ -13,6 +14,18 @@ export function Hero() {
     <section className="relative mx-auto max-w-6xl px-6 pt-20 pb-24 md:pt-28 md:pb-32">
       <div className="grid items-center gap-16 md:grid-cols-[1.15fr_1fr]">
         <div>
+          <div className="mb-6 flex items-center gap-3">
+            <Image
+              src="/repetoIQicon.png"
+              alt="repetoIQ"
+              width={64}
+              height={64}
+              priority
+              className="h-16 w-16"
+            />
+            <span className="font-display text-2xl tracking-tight lowercase">repetoIQ</span>
+          </div>
+
           <div className="inline-flex items-center gap-2 rounded-full border border-line/70 bg-surface/60 px-3 py-1 backdrop-blur-sm">
             <span className="h-1.5 w-1.5 rounded-full bg-accent" />
             <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-strong">

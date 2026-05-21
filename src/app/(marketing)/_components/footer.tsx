@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 
 export function Footer() {
@@ -5,8 +6,9 @@ export function Footer() {
     <footer className="relative mt-16">
       <div className="mx-auto h-px max-w-6xl bg-gradient-to-r from-transparent via-line to-transparent" />
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-10 text-sm">
-        <div className="flex items-baseline gap-3">
-          <span className="font-display text-lg">RepTag</span>
+        <div className="flex items-center gap-3">
+          <Image src="/repetoIQicon.png" alt="repetoIQ" width={32} height={32} className="h-8 w-8" />
+          <span className="font-display text-lg lowercase">repetoIQ</span>
           <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
             Your gym remembers your lifts
           </span>

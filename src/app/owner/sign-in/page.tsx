@@ -7,7 +7,7 @@ export default function SignInPage() {
       kicker="Welcome back"
       title="Step inside,"
       flourish="the floor is yours."
-      footerPrompt="New to RepTag?"
+      footerPrompt="New to RepetoIQ?"
       footerHref="/owner/sign-up"
       footerLabel="Open your gym →"
     >
