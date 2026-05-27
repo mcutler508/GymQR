@@ -44,6 +44,7 @@ export default async function OwnerDashboard() {
     { count: memberCount },
     { count: todayScans },
     { count: todaySets },
+    { count: pendingRequestsCount },
   ] = await Promise.all([
     supabase.from('equipment').select('id', { count: 'exact', head: true }).eq('gym_id', gym.id),
     supabase.from('members').select('id', { count: 'exact', head: true }).eq('gym_id', gym.id),
@@ -57,7 +58,13 @@ export default async function OwnerDashboard() {
       .select('id', { count: 'exact', head: true })
       .eq('gym_id', gym.id)
       .gte('logged_at', todayIso),
+    supabase
+      .from('equipment_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('gym_id', gym.id)
+      .eq('status', 'pending'),
   ]);
+  const pendingRequests = pendingRequestsCount ?? 0;
 
   return (
     <div className="space-y-16">
@@ -120,6 +127,16 @@ export default async function OwnerDashboard() {
           />
           <ActionCard
             index="04"
+            title={
+              pendingRequests > 0
+                ? `Equipment requests · ${pendingRequests} pending`
+                : 'Equipment requests'
+            }
+            blurb="Members ping you when they want a new machine on the floor. Approve to mint a sticker, dismiss to pass."
+            href="/owner/requests"
+          />
+          <ActionCard
+            index="05"
             title="Settings & branding"
             blurb="Theme, timezone, gym slug. Quiet controls for the room you’ve built."
             href="/owner/branding"
@@ -128,7 +145,7 @@ export default async function OwnerDashboard() {
       </section>
 
       <footer className="flex items-center justify-between border-t border-white/10 pt-6 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">
-        <span>repetoIQ &middot; Central Command</span>
+        <span>RepetoIQ &middot; Central Command</span>
         <span>{dateStamp}</span>
       </footer>
     </div>

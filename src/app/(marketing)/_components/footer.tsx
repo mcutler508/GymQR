@@ -7,8 +7,8 @@ export function Footer() {
       <div className="mx-auto h-px max-w-6xl bg-gradient-to-r from-transparent via-line to-transparent" />
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-10 text-sm">
         <div className="flex items-center gap-3">
-          <Image src="/repetoIQicon.png" alt="repetoIQ" width={32} height={32} className="h-8 w-8" />
-          <span className="font-display text-lg lowercase">repetoIQ</span>
+          <Image src="/repetoIQicon.png" alt="RepetoIQ" width={40} height={40} className="h-10 w-10" />
+          <span className="font-display text-lg">RepetoIQ</span>
           <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
             Your gym remembers your lifts
           </span>

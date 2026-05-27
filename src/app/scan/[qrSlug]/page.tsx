@@ -43,10 +43,10 @@ export default async function ScanPage({
       <main className="p-6 max-w-md mx-auto text-center bg-canvas text-ink min-h-screen">
         <Image
           src="/repetoIQicon.png"
-          alt="repetoIQ"
-          width={64}
-          height={64}
-          className="mx-auto mt-12 mb-4 h-16 w-16"
+          alt="RepetoIQ"
+          width={80}
+          height={80}
+          className="mx-auto mt-12 mb-4 h-20 w-20"
         />
         <h1 className="text-xl font-semibold mb-2">Something went wrong</h1>
         <p className="text-muted text-sm">{error.message}</p>
@@ -64,10 +64,10 @@ export default async function ScanPage({
         <main className="p-6 max-w-md mx-auto text-center pt-16">
           <Image
             src="/repetoIQicon.png"
-            alt="repetoIQ"
-            width={64}
-            height={64}
-            className="mx-auto mb-4 h-16 w-16"
+            alt="RepetoIQ"
+            width={80}
+            height={80}
+            className="mx-auto mb-4 h-20 w-20"
           />
           <h1 className="text-xl font-semibold mb-2">Equipment unavailable</h1>
           <p className="text-muted text-sm">

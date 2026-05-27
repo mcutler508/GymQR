@@ -218,8 +218,8 @@ export function QrClient({
         )}
         <div className="mt-5 flex items-center gap-2 opacity-70">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/repetoIQicon.png" alt="repetoIQ" className="h-5 w-5" style={{ filter: 'invert(1)' }} />
-          <span className="font-display text-xs lowercase tracking-tight text-neutral-700">repetoIQ</span>
+          <img src="/repetoIQicon.png" alt="RepetoIQ" className="h-6 w-6" style={{ filter: 'invert(1)' }} />
+          <span className="font-display text-xs tracking-tight text-neutral-700">RepetoIQ</span>
         </div>
       </div>
     </div>

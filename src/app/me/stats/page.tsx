@@ -99,12 +99,12 @@ export default async function MyStatsPage() {
         <div className="mb-6 flex items-center gap-2">
           <Image
             src="/repetoIQicon.png"
-            alt="repetoIQ"
-            width={32}
-            height={32}
-            className="h-8 w-8"
+            alt="RepetoIQ"
+            width={40}
+            height={40}
+            className="h-10 w-10"
           />
-          <span className="font-display text-sm tracking-tight lowercase text-muted">repetoIQ</span>
+          <span className="font-display text-sm tracking-tight text-muted">RepetoIQ</span>
         </div>
         <MemberStatsClient
           memberName={member.name}
@@ -130,10 +130,10 @@ function Unidentified() {
     <main className="p-6 max-w-md mx-auto text-center bg-canvas text-ink min-h-screen pt-16">
       <Image
         src="/repetoIQicon.png"
-        alt="repetoIQ"
-        width={64}
-        height={64}
-        className="mx-auto mb-4 h-16 w-16"
+        alt="RepetoIQ"
+        width={80}
+        height={80}
+        className="mx-auto mb-4 h-20 w-20"
       />
       <h1 className="text-xl font-semibold mb-2">Sign in first</h1>
       <p className="text-muted text-sm mb-6">

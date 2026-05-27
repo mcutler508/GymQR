@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { requestEquipment } from './actions';
 
 type Status = 'init' | 'requesting' | 'scanning' | 'detected' | 'denied' | 'error';
 
@@ -149,11 +150,11 @@ export function Scanner() {
         <header className="mb-4 flex flex-col items-center text-center">
           <Image
             src="/repetoIQicon.png"
-            alt="repetoIQ"
-            width={64}
-            height={64}
+            alt="RepetoIQ"
+            width={80}
+            height={80}
             priority
-            className="mb-2 h-16 w-16"
+            className="mb-2 h-20 w-20"
           />
           <h1 className="text-xl font-semibold">Scan a machine</h1>
           <p className="text-sm text-muted mt-1">Point at the QR sticker.</p>
@@ -201,8 +202,88 @@ export function Scanner() {
         >
           Cancel
         </button>
+
+        <RequestEquipment />
       </div>
     </main>
+  );
+}
+
+function RequestEquipment() {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [pending, startTransition] = useTransition();
+  const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setMsg(null);
+    startTransition(async () => {
+      const res = await requestEquipment({ name });
+      if (res.ok) {
+        setMsg({ kind: 'ok', text: 'Sent. Your gym will see it in their inbox.' });
+        setName('');
+      } else {
+        setMsg({ kind: 'err', text: res.error });
+      }
+    });
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="mt-6 block w-full text-center text-xs text-muted underline"
+      >
+        Don&rsquo;t see your machine? Request it.
+      </button>
+    );
+  }
+
+  return (
+    <div className="mt-6 p-4 rounded-card border border-line bg-surface">
+      <p className="text-sm font-medium">Request a new machine</p>
+      <p className="mt-1 text-xs text-muted">
+        We&rsquo;ll send the name to your gym. They&rsquo;ll print a sticker.
+      </p>
+      <form onSubmit={onSubmit} className="mt-3 space-y-3">
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Hack Squat"
+          maxLength={80}
+          autoFocus
+          className="w-full px-3 py-2 rounded-lg bg-canvas border border-line focus:border-ink focus:outline-none text-sm"
+        />
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={pending || !name.trim()}
+            className="flex-1 px-3 py-2 rounded-lg bg-ink text-canvas text-sm font-medium disabled:opacity-50"
+          >
+            {pending ? 'Sending…' : 'Send request'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setMsg(null);
+              setName('');
+            }}
+            className="px-3 py-2 rounded-lg border border-line text-sm text-muted"
+          >
+            Cancel
+          </button>
+        </div>
+        {msg && (
+          <p className={`text-xs ${msg.kind === 'ok' ? 'text-accent' : 'text-red-400'}`}>
+            {msg.text}
+          </p>
+        )}
+      </form>
+    </div>
   );
 }
 

@@ -6,9 +6,15 @@ import { createEquipment } from '../../../actions';
 import { ExercisePicker } from '../ExercisePicker';
 import type { EquipmentType } from '@/lib/supabase';
 
-export function NewEquipmentForm() {
+export function NewEquipmentForm({
+  prefillName = '',
+  requestId = null,
+}: {
+  prefillName?: string;
+  requestId?: string | null;
+}) {
   const router = useRouter();
-  const [name, setName] = useState('');
+  const [name, setName] = useState(prefillName);
   const [machineLabel, setMachineLabel] = useState('');
   const [equipmentType, setEquipmentType] = useState<EquipmentType>('strength_single');
   const [exercises, setExercises] = useState<string[]>([]);
@@ -27,6 +33,7 @@ export function NewEquipmentForm() {
         machineLabel,
         equipmentType,
         exercises,
+        requestId,
       });
       if (!res.ok) return setErr(res.error);
       router.push(`/owner/equipment/${res.id}/qr`);

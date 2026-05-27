@@ -61,13 +61,13 @@ export function AuthShell({
             <Link href="/" className="flex items-center gap-3">
               <Image
                 src="/repetoIQicon.png"
-                alt="repetoIQ"
-                width={44}
-                height={44}
+                alt="RepetoIQ"
+                width={56}
+                height={56}
                 priority
-                className="h-11 w-11"
+                className="h-14 w-14"
               />
-              <span className="font-display text-2xl tracking-tight lowercase">repetoIQ</span>
+              <span className="font-display text-2xl tracking-tight">RepetoIQ</span>
             </Link>
             <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500">
               Est. 2026

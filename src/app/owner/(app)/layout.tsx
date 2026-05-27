@@ -19,7 +19,17 @@ export default async function GatedOwnerLayout({
     .from('gyms')
     .select('id, name')
     .eq('owner_id', data.user.id)
-    .maybeSingle();
+    .maybeSingle<{ id: string; name: string }>();
+
+  let pendingRequests = 0;
+  if (gym) {
+    const { count } = await supabase
+      .from('equipment_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('gym_id', gym.id)
+      .eq('status', 'pending');
+    pendingRequests = count ?? 0;
+  }
 
   return (
     <div className="relative min-h-screen bg-black text-white">
@@ -48,14 +58,14 @@ export default async function GatedOwnerLayout({
             <Link href="/owner" className="group flex items-center gap-3">
               <Image
                 src="/repetoIQicon.png"
-                alt="repetoIQ"
-                width={40}
-                height={40}
+                alt="RepetoIQ"
+                width={48}
+                height={48}
                 priority
-                className="h-10 w-10"
+                className="h-12 w-12"
               />
               <span className="font-display text-xl tracking-tight">
-                {gym?.name ?? 'repetoIQ'}
+                {gym?.name ?? 'RepetoIQ'}
               </span>
               <span className="hidden font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500 sm:inline">
                 Central Command
@@ -67,6 +77,7 @@ export default async function GatedOwnerLayout({
             <NavLink href="/owner">Dashboard</NavLink>
             <NavLink href="/owner/equipment">Equipment</NavLink>
             <NavLink href="/owner/members">Members</NavLink>
+            <NavLink href="/owner/requests" badge={pendingRequests}>Requests</NavLink>
             <NavLink href="/owner/branding">Settings</NavLink>
           </nav>
 
@@ -85,6 +96,7 @@ export default async function GatedOwnerLayout({
           <NavLink href="/owner">Dashboard</NavLink>
           <NavLink href="/owner/equipment">Equipment</NavLink>
           <NavLink href="/owner/members">Members</NavLink>
+          <NavLink href="/owner/requests" badge={pendingRequests}>Requests</NavLink>
           <NavLink href="/owner/branding">Settings</NavLink>
         </nav>
       </header>
@@ -94,13 +106,26 @@ export default async function GatedOwnerLayout({
   );
 }
 
-function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+function NavLink({
+  href,
+  children,
+  badge,
+}: {
+  href: string;
+  children: React.ReactNode;
+  badge?: number;
+}) {
   return (
     <Link
       href={href}
-      className="group relative whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.22em] text-zinc-400 transition-colors hover:text-white"
+      className="group relative inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-[11px] uppercase tracking-[0.22em] text-zinc-400 transition-colors hover:text-white"
     >
-      {children}
+      <span>{children}</span>
+      {badge && badge > 0 ? (
+        <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-white px-1 text-[9px] font-semibold tracking-normal text-black">
+          {badge}
+        </span>
+      ) : null}
       <span
         aria-hidden
         className="absolute -bottom-1 left-0 h-px w-full origin-left scale-x-0 bg-white transition-transform duration-300 group-hover:scale-x-100"

@@ -89,6 +89,7 @@ export async function createEquipment(input: {
   machineLabel: string;
   equipmentType?: EquipmentType;
   exercises?: string[];
+  requestId?: string | null;
 }): Promise<{ ok: true; id: string; qrSlug: string } | { ok: false; error: string }> {
   const supabase = await getServerClient();
   const { data: userData } = await supabase.auth.getUser();
@@ -140,6 +141,14 @@ export async function createEquipment(input: {
       .single();
 
     if (!error && data) {
+      if (input.requestId) {
+        await supabase
+          .from('equipment_requests')
+          .update({ status: 'approved', resolved_at: new Date().toISOString() })
+          .eq('id', input.requestId)
+          .eq('gym_id', gym.id);
+        revalidatePath('/owner/requests');
+      }
       revalidatePath('/owner/equipment');
       revalidatePath('/owner');
       return { ok: true, id: data.id, qrSlug: data.qr_slug };

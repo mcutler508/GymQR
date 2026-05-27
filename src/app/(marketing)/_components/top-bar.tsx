@@ -8,13 +8,13 @@ export function TopBar() {
         <Link href="/" className="flex items-center gap-3">
           <Image
             src="/repetoIQicon.png"
-            alt="repetoIQ"
-            width={40}
-            height={40}
+            alt="RepetoIQ"
+            width={48}
+            height={48}
             priority
-            className="h-10 w-10"
+            className="h-12 w-12"
           />
-          <span className="font-display text-xl tracking-tight lowercase">repetoIQ</span>
+          <span className="font-display text-xl tracking-tight">RepetoIQ</span>
           <span className="hidden font-mono text-[10px] uppercase tracking-[0.22em] text-muted sm:inline">
             for gyms
           </span>

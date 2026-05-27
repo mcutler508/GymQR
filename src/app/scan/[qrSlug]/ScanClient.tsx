@@ -804,12 +804,12 @@ function Header({ equipment, gymName }: { equipment: Equipment; gymName: string 
       <div className="mb-4 flex items-center gap-2">
         <Image
           src="/repetoIQicon.png"
-          alt="repetoIQ"
-          width={32}
-          height={32}
-          className="h-8 w-8"
+          alt="RepetoIQ"
+          width={40}
+          height={40}
+          className="h-10 w-10"
         />
-        <span className="font-display text-sm tracking-tight lowercase text-muted">repetoIQ</span>
+        <span className="font-display text-sm tracking-tight text-muted">RepetoIQ</span>
       </div>
       <h1
         className={[

@@ -17,13 +17,13 @@ export function Hero() {
           <div className="mb-6 flex items-center gap-3">
             <Image
               src="/repetoIQicon.png"
-              alt="repetoIQ"
-              width={64}
-              height={64}
+              alt="RepetoIQ"
+              width={80}
+              height={80}
               priority
-              className="h-16 w-16"
+              className="h-20 w-20"
             />
-            <span className="font-display text-2xl tracking-tight lowercase">repetoIQ</span>
+            <span className="font-display text-2xl tracking-tight">RepetoIQ</span>
           </div>
 
           <div className="inline-flex items-center gap-2 rounded-full border border-line/70 bg-surface/60 px-3 py-1 backdrop-blur-sm">
