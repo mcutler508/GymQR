@@ -45,7 +45,7 @@ export function CardioProgressionChart({ points }: { points: CardioProgressionPo
   return (
     <div className="h-72 sm:h-80 w-full mt-2">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 16, right: 24, bottom: 8, left: 0 }}>
+        <LineChart data={data} margin={{ top: 32, right: 24, bottom: 8, left: 0 }}>
           <CartesianGrid
             stroke="rgb(var(--line))"
             strokeDasharray="2 4"
@@ -68,6 +68,7 @@ export function CardioProgressionChart({ points }: { points: CardioProgressionPo
             axisLine={false}
             width={40}
             tickFormatter={(v: number) => `${Math.round(v)}m`}
+            domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
           />
           <Tooltip
             cursor={{ stroke: 'rgb(var(--line))', strokeWidth: 1 }}
