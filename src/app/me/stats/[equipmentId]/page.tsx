@@ -13,6 +13,7 @@ import {
 } from '@/lib/cardio';
 import { ProgressionChart } from './ProgressionChart';
 import { CardioProgressionChart } from './CardioProgressionChart';
+import { KpiTile } from '../_components/KpiTile';
 import type { GymTheme } from '@/app/scan/[qrSlug]/page';
 import type { EquipmentType } from '@/lib/supabase';
 
@@ -86,8 +87,6 @@ export default async function MachineStatsPage({
   const isMulti = equipment.equipment_type === 'strength_multi';
   const isCardio = equipment.equipment_type === 'cardio';
 
-  // Resolve the active exercise tag (if any) and validate against the
-  // equipment's configured list, case-insensitively.
   const activeExercise: string | null =
     isMulti && exerciseParam
       ? equipment.exercises.find(
@@ -129,7 +128,9 @@ export default async function MachineStatsPage({
           <span className="font-display text-sm tracking-tight text-muted">RepetoIQ</span>
         </div>
         <header className="mb-6">
-          <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">Stats</p>
+          <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">
+            {isCardio ? 'Cardio · Stats' : 'Stats'}
+          </p>
           <h1
             className={[
               'mt-1 font-display tracking-tight leading-none',
@@ -175,14 +176,14 @@ export default async function MachineStatsPage({
         {isCardio && cBest && cTotals ? (
           <>
             <section className="grid grid-cols-3 gap-3 mb-6">
-              <Stat
+              <KpiTile
                 label="Longest"
                 value={
                   cBest.longestDurationSeconds > 0
                     ? formatDuration(cBest.longestDurationSeconds)
                     : '—'
                 }
-                sub={
+                sublabel={
                   cBest.longestDurationLoggedAt
                     ? new Date(cBest.longestDurationLoggedAt).toLocaleDateString(undefined, {
                         month: 'short',
@@ -190,16 +191,16 @@ export default async function MachineStatsPage({
                       })
                     : 'no sessions yet'
                 }
-                accent
+                accent={cBest.longestDurationSeconds > 0}
               />
-              <Stat
+              <KpiTile
                 label="Farthest"
                 value={
                   cBest.longestDistanceMeters > 0
                     ? `${formatMiles(cBest.longestDistanceMeters)} mi`
                     : '—'
                 }
-                sub={
+                sublabel={
                   cBest.longestDistanceLoggedAt
                     ? new Date(cBest.longestDistanceLoggedAt).toLocaleDateString(undefined, {
                         month: 'short',
@@ -208,18 +209,18 @@ export default async function MachineStatsPage({
                     : 'no distance yet'
                 }
               />
-              <Stat
+              <KpiTile
                 label="Total time"
                 value={
                   cTotals.totalDurationSeconds > 0
                     ? formatDuration(cTotals.totalDurationSeconds)
                     : '—'
                 }
-                sub={`${cTotals.totalSessions} ${cTotals.totalSessions === 1 ? 'session' : 'sessions'}`}
+                sublabel={`${cTotals.totalSessions} ${cTotals.totalSessions === 1 ? 'session' : 'sessions'}`}
               />
             </section>
 
-            <section className="p-4 rounded-card bg-surface border border-line">
+            <section className="p-4 sm:p-5 rounded-card bg-surface border border-line">
               <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-2">
                 Duration over time
               </p>
@@ -229,17 +230,24 @@ export default async function MachineStatsPage({
         ) : (
           <>
             <section className="grid grid-cols-3 gap-3 mb-6">
-              <Stat
+              <KpiTile
                 label="PR"
                 value={pr ? `${fmtWeight(pr.weight)} × ${pr.reps}` : '—'}
-                sub={pr ? new Date(pr.logged_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'no sets yet'}
-                accent
+                sublabel={
+                  pr
+                    ? new Date(pr.logged_at).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : 'no sets yet'
+                }
+                accent={!!pr}
               />
-              <Stat label="Sets" value={String(totals.totalSets)} sub="all time" />
-              <Stat label="Volume" value={fmtVol(totals.totalVolume)} sub="lbs moved" />
+              <KpiTile label="Sets" value={String(totals.totalSets)} sublabel="all time" />
+              <KpiTile label="Volume" value={fmtVol(totals.totalVolume)} sublabel="lbs moved" />
             </section>
 
-            <section className="p-4 rounded-card bg-surface border border-line">
+            <section className="p-4 sm:p-5 rounded-card bg-surface border border-line">
               <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-2">
                 Working set over time
               </p>
@@ -292,27 +300,6 @@ function ExerciseChip({
     >
       {label}
     </Link>
-  );
-}
-
-function Stat({ label, value, sub, accent }: { label: string; value: string; sub: string; accent?: boolean }) {
-  return (
-    <div className="p-3 rounded-card bg-surface border border-line">
-      <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">{label}</p>
-      <p
-        className={[
-          'mt-1 font-display tabular-nums',
-          accent ? 'text-accent' : 'text-ink',
-          'halogen:text-xl halogen:font-medium',
-          'concrete:text-2xl concrete:font-black',
-          'locker:text-lg locker:font-semibold',
-          'athletic:text-xl athletic:font-black athletic:italic',
-        ].join(' ')}
-      >
-        {value}
-      </p>
-      <p className="text-xs text-muted">{sub}</p>
-    </div>
   );
 }
 

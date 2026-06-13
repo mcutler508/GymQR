@@ -17,15 +17,23 @@ import {
   bucketsForRange,
   filterByRange,
   loadRange,
+  priorRangeLabel,
+  priorRangeTotals,
+  rangeStartIso,
   saveRange,
   type RangeKey,
 } from '@/lib/member-range';
-import { prFor } from '@/lib/stats';
+import { prFor, weeklyStreak } from '@/lib/stats';
 import { cardioBest } from '@/lib/cardio';
 import type { EquipmentType } from '@/lib/supabase';
 import { MachineCardsView, type MachineStat, type ExerciseStat } from './MachineCardsView';
 import { MachineTableView } from './MachineTableView';
-import { WeeklyBarCharts } from './WeeklyBarCharts';
+import { ActivityChart } from './_components/ActivityChart';
+import { KpiTile } from './_components/KpiTile';
+import { RangePicker } from './_components/RangePicker';
+import { StreakChip } from './_components/StreakChip';
+import { EmptyState } from './_components/EmptyState';
+import type { Delta } from './_components/DeltaIndicator';
 
 export type ClientSet = {
   weight: number | null;
@@ -65,7 +73,6 @@ export function MemberStatsClient({
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [columnIds, setColumnIds] = useState<ColumnId[]>(DEFAULT_COLUMN_IDS);
 
-  // Load persisted preferences after mount (avoids SSR/CSR mismatch).
   useEffect(() => {
     setRange(loadRange());
     setViewMode(loadViewMode());
@@ -98,14 +105,11 @@ export function MemberStatsClient({
     return m;
   }, [equipment]);
 
-  // Range-scoped slice of sets — used for hero + table + cards. Lifetime PR
-  // and "last lifted" are computed against the full set list.
   const rangedSets = useMemo(
     () => filterByRange(sets, range, timezone),
     [sets, range, timezone],
   );
 
-  // Bar chart buckets — granularity matches the active range.
   const { buckets, scale } = useMemo(
     () => bucketsForRange(sets, range, timezone),
     [sets, range, timezone],
@@ -116,24 +120,35 @@ export function MemberStatsClient({
     [sets],
   );
 
-  // Hero stats — 3 range-aware + 1 lifetime PR.
   const hero = useMemo(() => computeHero(rangedSets, sets), [rangedSets, sets]);
 
-  // Cards view shape — currently respects the range filter for setCount and
-  // progression so cards mirror table when the user filters down.
-  const machines = useMemo<MachineStat[]>(
-    () => buildMachines(rangedSets, equipmentById, timezone),
-    [rangedSets, equipmentById, timezone],
+  const prior = useMemo(
+    () => priorRangeTotals(sets, range, timezone),
+    [sets, range, timezone],
   );
 
-  // Table rows — one per equipment×exercise. Numbers are range-scoped; PR
-  // stays lifetime so the column lives up to its name.
+  const streak = useMemo(
+    () => weeklyStreak(sets, timezone),
+    [sets, timezone],
+  );
+
+  const priorLabel = priorRangeLabel(range);
+
+  const rangeStart = useMemo(
+    () => rangeStartIso(range, timezone),
+    [range, timezone],
+  );
+
+  const machines = useMemo<MachineStat[]>(
+    () => buildMachines(rangedSets, sets, equipmentById, timezone, rangeStart),
+    [rangedSets, sets, equipmentById, timezone, rangeStart],
+  );
+
   const rows = useMemo<MemberStatRow[]>(
     () => buildRows(sets, rangedSets, equipmentById),
     [sets, rangedSets, equipmentById],
   );
 
-  // Render columns in the canonical ALL_COLUMNS order regardless of toggle order.
   const orderedColumnIds = useMemo<ColumnId[]>(
     () => ALL_COLUMNS.filter((c) => columnIds.includes(c.id)).map((c) => c.id),
     [columnIds],
@@ -141,38 +156,66 @@ export function MemberStatsClient({
 
   const sublabel = RANGE_OPTIONS.find((o) => o.key === range)?.sublabel ?? '';
   const hasAnySets = sets.length > 0;
+  const hasRangeSets = rangedSets.length > 0;
 
   return (
     <>
       <header className="mb-5">
-        <h1 className={themeClassNames}>{memberName}</h1>
-        <p className="mt-2 text-sm text-muted">{gymName}</p>
+        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-1">
+          Member · {gymName}
+        </p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className={themeClassNames}>{memberName}</h1>
+          <StreakChip days={streak} />
+        </div>
       </header>
 
       <div className="mb-4">
         <RangePicker value={range} onChange={changeRange} />
       </div>
 
-      <section className="grid grid-cols-2 gap-3 mb-6">
-        <Stat label="Volume" value={fmtVol(hero.volume)} sub={`lbs ${sublabel}`} />
-        <Stat label="Sets" value={String(hero.setCount)} sub={sublabel} />
-        <Stat label="Workouts" value={String(hero.workoutDays)} sub={`days ${sublabel}`} />
-        <Stat
+      <section className="grid grid-cols-2 gap-3 mb-2">
+        <KpiTile
+          label="Volume"
+          value={fmtVol(hero.volume)}
+          sublabel={`lbs ${sublabel}`}
+          delta={makeDelta(hero.volume, prior?.volume ?? null, (n) => `${fmtVol(Math.abs(n))} lbs`)}
+        />
+        <KpiTile
+          label="Sets"
+          value={String(hero.setCount)}
+          sublabel={sublabel}
+          delta={makeDelta(hero.setCount, prior?.setCount ?? null, (n) => String(Math.abs(n)))}
+        />
+        <KpiTile
+          label="Workouts"
+          value={String(hero.workoutDays)}
+          sublabel={`days ${sublabel}`}
+          delta={makeDelta(hero.workoutDays, prior?.workoutDays ?? null, (n) => `${Math.abs(n)} ${Math.abs(n) === 1 ? 'day' : 'days'}`)}
+        />
+        <KpiTile
           label="Lifetime PR"
           value={
             hero.lifetimePr
               ? `${fmtWeight(hero.lifetimePr.weight)} × ${hero.lifetimePr.reps}`
               : '—'
           }
-          sub={hero.lifetimePr ? 'all time' : 'no sets yet'}
+          sublabel={hero.lifetimePr ? 'all time' : 'no sets yet'}
+          accent={!!hero.lifetimePr}
         />
       </section>
+      {priorLabel && (
+        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted mb-6">
+          Δ {priorLabel}
+        </p>
+      )}
+      {!priorLabel && <div className="mb-6" />}
 
-      {hasAnySets && <WeeklyBarCharts buckets={buckets} scale={scale} hasCardio={hasCardio} />}
+      {hasAnySets && <ActivityChart buckets={buckets} scale={scale} hasCardio={hasCardio} />}
 
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">
-          Per-machine · {sublabel}
+          Machines · {sublabel}
         </h2>
         <div className="flex items-center gap-2">
           <ViewToggle value={viewMode} onChange={changeViewMode} />
@@ -183,9 +226,19 @@ export function MemberStatsClient({
       </div>
 
       {!hasAnySets ? (
-        <p className="text-sm text-muted">
-          No sets logged yet. Scan a QR sticker to get started.
-        </p>
+        <EmptyState
+          kicker="No data yet"
+          headline="Your first set is one scan away"
+          sublabel="Scan a QR sticker on any machine to log your first set and start your stats."
+          cta={{ label: 'Open scanner', href: '/scan' }}
+        />
+      ) : !hasRangeSets ? (
+        <EmptyState
+          kicker="Nothing in this range"
+          headline={`No sessions ${sublabel}`}
+          sublabel="Try a wider window above, or scan a machine to log a fresh set."
+          cta={{ label: 'Open scanner', href: '/scan' }}
+        />
       ) : machines.length === 0 ? (
         <p className="text-sm text-muted">
           No activity in this range. Try a wider window above.
@@ -200,6 +253,27 @@ export function MemberStatsClient({
 }
 
 /* ---------------------------- compute helpers ---------------------------- */
+
+function makeDelta(
+  current: number,
+  prior: number | null,
+  formatAbs: (absDiff: number) => string,
+): Delta | null {
+  if (prior == null) return null;
+  if (current === 0 && prior === 0) return null;
+  if (current === prior) {
+    return { value: 'No change', direction: 'flat' };
+  }
+  const diff = current - prior;
+  if (prior === 0) {
+    return { value: `+${formatAbs(diff)}`, direction: 'up' };
+  }
+  const pct = Math.round((diff / prior) * 100);
+  return {
+    value: `${Math.abs(pct)}%`,
+    direction: diff > 0 ? 'up' : 'down',
+  };
+}
 
 function computeHero(rangedSets: ClientSet[], allSets: ClientSet[]) {
   let volume = 0;
@@ -220,9 +294,19 @@ function computeHero(rangedSets: ClientSet[], allSets: ClientSet[]) {
 
 function buildMachines(
   rangedSets: ClientSet[],
+  allSets: ClientSet[],
   equipmentById: Map<string, EquipmentMeta>,
   timezone: string,
+  rangeStart: string | null,
 ): MachineStat[] {
+  // Group lifetime sets per equipment so PR (and prInRange detection) reflects
+  // the member's entire history, not just the active range.
+  const lifetimeByEquipment = new Map<string, ClientSet[]>();
+  for (const s of allSets) {
+    if (!lifetimeByEquipment.has(s.equipment_id)) lifetimeByEquipment.set(s.equipment_id, []);
+    lifetimeByEquipment.get(s.equipment_id)!.push(s);
+  }
+
   const byEquipment = new Map<string, ClientSet[]>();
   for (const s of rangedSets) {
     if (!byEquipment.has(s.equipment_id)) byEquipment.set(s.equipment_id, []);
@@ -233,8 +317,15 @@ function buildMachines(
   for (const [id, machineSets] of byEquipment.entries()) {
     const meta = equipmentById.get(id);
     if (!meta) continue;
-    const pr = prFor(machineSets);
+    const lifetimeSets = lifetimeByEquipment.get(id) ?? machineSets;
+    const pr = prFor(lifetimeSets);
     const progression = progressionInTz(machineSets, timezone);
+
+    // PR set within the active range? Compare the lifetime PR's logged_at to
+    // the range start (in the gym TZ). If the PR happened during the range, we
+    // want to celebrate it with a small accent dot in the card.
+    const prInRange =
+      pr != null && rangeStart != null && pr.logged_at >= rangeStart;
 
     let exercises: ExerciseStat[] = [];
     let cardio = null;
@@ -268,6 +359,7 @@ function buildMachines(
       equipmentType: meta.equipment_type,
       setCount: machineSets.length,
       pr,
+      prInRange,
       progression,
       lastLogged: latest(machineSets),
       exercises,
@@ -286,7 +378,6 @@ function buildRows(
   rangedSets: ClientSet[],
   equipmentById: Map<string, EquipmentMeta>,
 ): MemberStatRow[] {
-  // Group by equipment for lifetime metrics (PR, last lifted).
   const allByEq = new Map<string, ClientSet[]>();
   for (const s of allSets) {
     if (!allByEq.has(s.equipment_id)) allByEq.set(s.equipment_id, []);
@@ -299,9 +390,6 @@ function buildRows(
   }
 
   const rows: MemberStatRow[] = [];
-  // Iterate over the union of equipment ids — we want a row even when an
-  // equipment has lifetime data but nothing in-range, so the "last lifted"
-  // signal stays visible. The view-level filter below removes empty rows.
   const seen = new globalThis.Set<string>();
   for (const id of [...allByEq.keys(), ...rangedByEq.keys()]) {
     if (seen.has(id)) continue;
@@ -343,9 +431,6 @@ function buildRows(
     }
   }
 
-  // Drop rows with no in-range activity AND no lifetime activity (defensive,
-  // shouldn't happen) — but KEEP lifetime-only rows so members can see what
-  // they've previously trained even when filtering to a tight range.
   return rows.filter((r) => r.setCount > 0);
 }
 
@@ -405,12 +490,10 @@ function groupByExercise(sets: ClientSet[]): Map<string, ClientSet[]> {
 }
 
 function progressionInTz(sets: ClientSet[], timezone: string) {
-  // Lightweight inline reimplementation — same shape as stats.progressionFor
-  // but typed against ClientSet.
   const byDay = new Map<string, { weight: number; reps: number }>();
   for (const s of sets) {
     if (s.weight == null || s.reps == null) continue;
-    const day = s.logged_at.slice(0, 10); // YYYY-MM-DD in UTC; close enough for sparkline ordering
+    const day = s.logged_at.slice(0, 10);
     const w = Number(s.weight);
     const r = Number(s.reps);
     const cur = byDay.get(day);
@@ -418,7 +501,6 @@ function progressionInTz(sets: ClientSet[], timezone: string) {
       byDay.set(day, { weight: w, reps: r });
     }
   }
-  // Suppress unused timezone param warning while keeping API consistent.
   void timezone;
   return Array.from(byDay.entries())
     .map(([day, v]) => ({
@@ -450,42 +532,6 @@ function fmtWeight(w: number): string {
 }
 
 /* ---------------------------- UI fragments ---------------------------- */
-
-function RangePicker({
-  value,
-  onChange,
-}: {
-  value: RangeKey;
-  onChange: (r: RangeKey) => void;
-}) {
-  return (
-    <div
-      role="tablist"
-      aria-label="Time range"
-      className="inline-flex items-center gap-1 p-1 rounded-card bg-surface border border-line text-xs"
-    >
-      {RANGE_OPTIONS.map((opt) => {
-        const active = value === opt.key;
-        return (
-          <button
-            key={opt.key}
-            role="tab"
-            aria-selected={active}
-            type="button"
-            onClick={() => onChange(opt.key)}
-            className={`px-3 py-1.5 rounded transition-colors ${
-              active
-                ? 'bg-accent text-accent-ink font-medium'
-                : 'text-muted hover:text-ink'
-            }`}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 function ViewToggle({
   value,
@@ -590,28 +636,6 @@ function ColumnPicker({
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function Stat({ label, value, sub }: { label: string; value: string; sub: string }) {
-  return (
-    <div className="p-4 rounded-card bg-surface border border-line">
-      <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">
-        {label}
-      </p>
-      <p
-        className={[
-          'mt-1 font-display tabular-nums',
-          'halogen:text-3xl halogen:font-medium',
-          'concrete:text-4xl concrete:font-black',
-          'locker:text-2xl locker:font-semibold',
-          'athletic:text-3xl athletic:font-black athletic:italic',
-        ].join(' ')}
-      >
-        {value}
-      </p>
-      <p className="text-xs text-muted">{sub}</p>
     </div>
   );
 }

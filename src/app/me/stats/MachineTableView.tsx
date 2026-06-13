@@ -64,7 +64,7 @@ export function MachineTableView({ rows, columnIds }: Props) {
                 <th
                   key={c.id}
                   className={[
-                    'px-3 py-2.5 font-mono text-[10px] uppercase tracking-[0.18em] whitespace-nowrap',
+                    'px-3 py-3 font-mono text-[10px] font-medium uppercase tracking-[0.2em] whitespace-nowrap',
                     c.align === 'right' ? 'text-right' : 'text-left',
                   ].join(' ')}
                 >
@@ -107,7 +107,7 @@ export function MachineTableView({ rows, columnIds }: Props) {
                     <Link
                       href={href}
                       className={[
-                        'block px-3 py-2.5',
+                        'block px-3 py-3',
                         i === 0 ? 'font-medium text-ink' : 'text-muted-strong',
                       ].join(' ')}
                     >

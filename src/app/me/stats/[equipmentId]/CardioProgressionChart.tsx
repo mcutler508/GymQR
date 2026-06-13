@@ -7,6 +7,7 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  ReferenceDot,
   ResponsiveContainer,
 } from 'recharts';
 import {
@@ -14,17 +15,20 @@ import {
   formatMiles,
   type CardioProgressionPoint,
 } from '@/lib/cardio';
+import { ChartTooltip } from '../_components/ChartTooltip';
+import { EmptyState } from '../_components/EmptyState';
 
 export function CardioProgressionChart({ points }: { points: CardioProgressionPoint[] }) {
   if (points.length === 0) {
     return (
-      <div className="h-48 flex items-center justify-center text-sm text-neutral-500">
-        No sessions logged yet on this machine.
-      </div>
+      <EmptyState
+        headline="No sessions yet"
+        sublabel="Log a session on this machine to see your duration over time."
+      />
     );
   }
 
-  // Y axis is duration in minutes (cleaner ticks than seconds).
+  // Y axis is duration in minutes for cleaner ticks than seconds.
   const data = points.map((p) => ({
     ts: p.ts,
     minutes: p.durationSeconds / 60,
@@ -32,11 +36,21 @@ export function CardioProgressionChart({ points }: { points: CardioProgressionPo
     distanceMeters: p.distanceMeters,
   }));
 
+  // Longest session — annotated as the "best" marker.
+  let best = data[0];
+  for (const d of data) {
+    if (d.minutes > best.minutes) best = d;
+  }
+
   return (
-    <div className="h-56 w-full mt-2">
+    <div className="h-72 sm:h-80 w-full mt-2">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: -16 }}>
-          <CartesianGrid stroke="#262626" strokeDasharray="3 3" />
+        <LineChart data={data} margin={{ top: 16, right: 24, bottom: 8, left: 0 }}>
+          <CartesianGrid
+            stroke="rgb(var(--line))"
+            strokeDasharray="2 4"
+            vertical={false}
+          />
           <XAxis
             dataKey="ts"
             type="number"
@@ -44,51 +58,72 @@ export function CardioProgressionChart({ points }: { points: CardioProgressionPo
             tickFormatter={(v: number) =>
               new Date(v).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
             }
-            tick={{ fill: '#737373', fontSize: 11 }}
-            stroke="#404040"
+            tick={{ fill: 'rgb(var(--muted))', fontSize: 11 }}
+            tickLine={false}
+            axisLine={{ stroke: 'rgb(var(--line))' }}
           />
           <YAxis
-            tick={{ fill: '#737373', fontSize: 11 }}
-            stroke="#404040"
+            tick={{ fill: 'rgb(var(--muted))', fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
             width={40}
             tickFormatter={(v: number) => `${Math.round(v)}m`}
           />
           <Tooltip
-            contentStyle={{
-              background: '#0a0a0a',
-              border: '1px solid #262626',
-              borderRadius: '8px',
-              fontSize: '12px',
-            }}
-            labelFormatter={(v) => {
-              const ts = typeof v === 'number' ? v : Number(v);
-              return Number.isFinite(ts)
-                ? new Date(ts).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })
-                : '';
-            }}
-            formatter={(_value, _name, ctx) => {
-              const p = ctx?.payload as
-                | { durationSeconds: number; distanceMeters: number }
-                | undefined;
-              if (!p) return ['', ''] as [string, string];
-              const dur = formatDuration(p.durationSeconds);
-              const label = p.distanceMeters > 0
-                ? `${dur} · ${formatMiles(p.distanceMeters)} mi`
-                : dur;
-              return [label, 'Session'] as [string, string];
-            }}
+            cursor={{ stroke: 'rgb(var(--line))', strokeWidth: 1 }}
+            content={
+              <ChartTooltip
+                formatLabel={(label) => {
+                  const ts = typeof label === 'number' ? label : Number(label);
+                  return Number.isFinite(ts)
+                    ? new Date(ts).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : '';
+                }}
+                formatValue={(_value, payload) => {
+                  const p = payload as
+                    | { durationSeconds: number; distanceMeters: number }
+                    | undefined;
+                  if (!p) return { primary: '' };
+                  const dur = formatDuration(p.durationSeconds);
+                  return {
+                    primary: p.distanceMeters > 0
+                      ? `${dur} · ${formatMiles(p.distanceMeters)} mi`
+                      : dur,
+                    secondary: 'Session',
+                  };
+                }}
+              />
+            }
           />
           <Line
             type="monotone"
             dataKey="minutes"
-            stroke="#34d399"
+            stroke="rgb(var(--accent))"
             strokeWidth={2}
-            dot={{ fill: '#34d399', r: 3 }}
-            activeDot={{ r: 5 }}
+            dot={{ fill: 'rgb(var(--accent))', stroke: 'rgb(var(--accent))', r: 3 }}
+            activeDot={{ r: 5, fill: 'rgb(var(--accent))', stroke: 'rgb(var(--surface))', strokeWidth: 2 }}
+          />
+          <ReferenceDot
+            x={best.ts}
+            y={best.minutes}
+            r={6}
+            fill="rgb(var(--accent))"
+            stroke="rgb(var(--surface))"
+            strokeWidth={2}
+            ifOverflow="visible"
+            label={{
+              value: 'BEST',
+              position: 'top',
+              offset: 8,
+              fill: 'rgb(var(--accent))',
+              fontSize: 10,
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: '0.15em',
+            }}
           />
         </LineChart>
       </ResponsiveContainer>

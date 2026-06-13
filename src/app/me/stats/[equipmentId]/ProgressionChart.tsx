@@ -7,24 +7,41 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
+  ReferenceDot,
   ResponsiveContainer,
 } from 'recharts';
 import type { ProgressionPoint } from '@/lib/stats';
+import { ChartTooltip } from '../_components/ChartTooltip';
+import { EmptyState } from '../_components/EmptyState';
 
 export function ProgressionChart({ points }: { points: ProgressionPoint[] }) {
   if (points.length === 0) {
     return (
-      <div className="h-48 flex items-center justify-center text-sm text-neutral-500">
-        No sets logged yet on this machine.
-      </div>
+      <EmptyState
+        headline="No working sets yet"
+        sublabel="Log a few sets on this machine to see your progression."
+      />
     );
   }
 
+  // Find the lifetime PR point so we can drop a small accent marker on the
+  // chart. Heaviest weight wins, reps break ties — same rule as prFor().
+  let prPoint = points[0];
+  for (const p of points) {
+    if (p.weight > prPoint.weight || (p.weight === prPoint.weight && p.reps > prPoint.reps)) {
+      prPoint = p;
+    }
+  }
+
   return (
-    <div className="h-56 w-full mt-2">
+    <div className="h-72 sm:h-80 w-full mt-2">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={points} margin={{ top: 8, right: 16, bottom: 8, left: -16 }}>
-          <CartesianGrid stroke="#262626" strokeDasharray="3 3" />
+        <LineChart data={points} margin={{ top: 16, right: 24, bottom: 8, left: 0 }}>
+          <CartesianGrid
+            stroke="rgb(var(--line))"
+            strokeDasharray="2 4"
+            vertical={false}
+          />
           <XAxis
             dataKey="ts"
             type="number"
@@ -32,43 +49,65 @@ export function ProgressionChart({ points }: { points: ProgressionPoint[] }) {
             tickFormatter={(v: number) =>
               new Date(v).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
             }
-            tick={{ fill: '#737373', fontSize: 11 }}
-            stroke="#404040"
+            tick={{ fill: 'rgb(var(--muted))', fontSize: 11 }}
+            tickLine={false}
+            axisLine={{ stroke: 'rgb(var(--line))' }}
           />
           <YAxis
-            tick={{ fill: '#737373', fontSize: 11 }}
-            stroke="#404040"
+            tick={{ fill: 'rgb(var(--muted))', fontSize: 11 }}
+            tickLine={false}
+            axisLine={false}
             width={40}
           />
           <Tooltip
-            contentStyle={{
-              background: '#0a0a0a',
-              border: '1px solid #262626',
-              borderRadius: '8px',
-              fontSize: '12px',
-            }}
-            labelFormatter={(v) => {
-              const ts = typeof v === 'number' ? v : Number(v);
-              return Number.isFinite(ts)
-                ? new Date(ts).toLocaleDateString(undefined, {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })
-                : '';
-            }}
-            formatter={(value, _name, ctx) => {
-              const reps = (ctx?.payload as ProgressionPoint | undefined)?.reps;
-              return [`${value} × ${reps ?? '?'}`, 'Working set'] as [string, string];
-            }}
+            cursor={{ stroke: 'rgb(var(--line))', strokeWidth: 1 }}
+            content={
+              <ChartTooltip
+                formatLabel={(label) => {
+                  const ts = typeof label === 'number' ? label : Number(label);
+                  return Number.isFinite(ts)
+                    ? new Date(ts).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })
+                    : '';
+                }}
+                formatValue={(value, payload) => {
+                  const reps = (payload as ProgressionPoint | undefined)?.reps;
+                  return {
+                    primary: `${value} × ${reps ?? '?'}`,
+                    secondary: 'Working set',
+                  };
+                }}
+              />
+            }
           />
           <Line
             type="monotone"
             dataKey="weight"
-            stroke="#34d399"
+            stroke="rgb(var(--accent))"
             strokeWidth={2}
-            dot={{ fill: '#34d399', r: 3 }}
-            activeDot={{ r: 5 }}
+            dot={{ fill: 'rgb(var(--accent))', stroke: 'rgb(var(--accent))', r: 3 }}
+            activeDot={{ r: 5, fill: 'rgb(var(--accent))', stroke: 'rgb(var(--surface))', strokeWidth: 2 }}
+          />
+          <ReferenceDot
+            x={prPoint.ts}
+            y={prPoint.weight}
+            r={6}
+            fill="rgb(var(--accent))"
+            stroke="rgb(var(--surface))"
+            strokeWidth={2}
+            ifOverflow="visible"
+            label={{
+              value: 'PR',
+              position: 'top',
+              offset: 8,
+              fill: 'rgb(var(--accent))',
+              fontSize: 10,
+              fontFamily: 'var(--font-mono)',
+              letterSpacing: '0.15em',
+            }}
           />
         </LineChart>
       </ResponsiveContainer>

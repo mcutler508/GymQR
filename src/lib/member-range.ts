@@ -69,6 +69,74 @@ export function filterByRange<T extends { logged_at: string }>(
   return sets.filter((s) => dayKeyInTz(s.logged_at, timezone) >= startDay);
 }
 
+/**
+ * Aggregated totals for the period IMMEDIATELY PRECEDING the active range —
+ * used for "↑ 12% vs last month" deltas on KPI tiles.
+ *   week  → prior 7 days (Mon-Sun of last week)
+ *   month → prior calendar month (1st through last day, in gym TZ)
+ *   ytd   → prior calendar year (Jan 1 – Dec 31)
+ *   all   → no comparison possible (returns null)
+ */
+export function priorRangeTotals(
+  sets: { weight: number | null; reps: number | null; duration_seconds: number | null; logged_at: string }[],
+  range: RangeKey,
+  timezone: string,
+  now: Date = new Date(),
+): { volume: number; setCount: number; workoutDays: number; cardioSeconds: number } | null {
+  if (range === 'all') return null;
+  const todayKey = dayKeyInTz(now.toISOString(), timezone);
+
+  let startDay: string;
+  let endDayInclusive: string;
+  if (range === 'week') {
+    const thisMonday = mondayKey(todayKey);
+    startDay = addDays(thisMonday, -7);
+    endDayInclusive = addDays(thisMonday, -1);
+  } else if (range === 'month') {
+    const thisMonthFirst = `${todayKey.slice(0, 7)}-01`;
+    endDayInclusive = addDays(thisMonthFirst, -1);
+    startDay = `${endDayInclusive.slice(0, 7)}-01`;
+  } else {
+    // ytd
+    const thisYear = parseInt(todayKey.slice(0, 4), 10);
+    startDay = `${thisYear - 1}-01-01`;
+    endDayInclusive = `${thisYear - 1}-12-31`;
+  }
+
+  let volume = 0;
+  let setCount = 0;
+  let cardioSeconds = 0;
+  const days = new globalThis.Set<string>();
+  for (const s of sets) {
+    const day = dayKeyInTz(s.logged_at, timezone);
+    if (day < startDay || day > endDayInclusive) continue;
+    setCount += 1;
+    days.add(day);
+    if (s.weight != null && s.reps != null) {
+      volume += Number(s.weight) * Number(s.reps);
+    }
+    if (s.duration_seconds != null) {
+      cardioSeconds += Number(s.duration_seconds);
+    }
+  }
+  return {
+    volume: Math.round(volume),
+    setCount,
+    workoutDays: days.size,
+    cardioSeconds,
+  };
+}
+
+/** Human label for the delta descriptor (e.g. "vs last week"). Null when no prior range. */
+export function priorRangeLabel(range: RangeKey): string | null {
+  switch (range) {
+    case 'week':  return 'vs last week';
+    case 'month': return 'vs last month';
+    case 'ytd':   return 'vs last year';
+    case 'all':   return null;
+  }
+}
+
 export type BucketScale = 'day' | 'week' | 'month';
 
 /** Granularity to drive the bar charts under each range. */
