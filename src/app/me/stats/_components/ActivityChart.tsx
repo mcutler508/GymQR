@@ -90,20 +90,24 @@ export function ActivityChart({ buckets, scale, hasCardio }: Props) {
     data.length > 8 ? Math.ceil(data.length / 6) - 1 : 0;
 
   return (
-    <section className="rounded-card border border-line bg-surface p-4 sm:p-5 mb-6">
+    <section className="mb-8">
       <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
         <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">
           Activity · last {data.length} {data.length === 1 ? scaleWord : `${scaleWord}s`}
         </p>
-        <p className="text-xs text-muted-strong">
-          <span className="font-display text-ink text-xl mr-1.5 tabular-nums">
+        <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
+          <span className="font-display normal-case tracking-normal text-ink text-xl mr-1.5 tabular-nums">
             {metric.format(latestValue)}
           </span>
           this {scaleWord}
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-1 p-1 rounded-card bg-surface-2 border border-line mb-4 text-xs">
+      <div
+        role="tablist"
+        aria-label="Chart metric"
+        className="flex items-end gap-6 border-b border-line mb-4 text-xs"
+      >
         {metricKeys.map((k) => {
           const m = ALL_METRICS[k];
           const active = k === activeKey;
@@ -111,12 +115,13 @@ export function ActivityChart({ buckets, scale, hasCardio }: Props) {
             <button
               key={k}
               type="button"
+              role="tab"
+              aria-selected={active}
               onClick={() => setActiveKey(k)}
-              aria-pressed={active}
-              className={`flex-1 px-3 py-1.5 rounded transition-colors ${
+              className={`pb-2 -mb-px font-mono uppercase tracking-[0.15em] text-[11px] transition-colors border-b-2 ${
                 active
-                  ? 'bg-accent text-accent-ink font-medium'
-                  : 'text-muted hover:text-ink'
+                  ? 'text-ink border-accent'
+                  : 'text-muted border-transparent hover:text-ink'
               }`}
             >
               {m.label}

@@ -175,7 +175,7 @@ export default async function MachineStatsPage({
 
         {isCardio && cBest && cTotals ? (
           <>
-            <section className="grid grid-cols-3 gap-3 mb-6">
+            <section className="grid grid-cols-3 gap-x-4 gap-y-7 mb-8">
               <KpiTile
                 label="Longest"
                 value={
@@ -220,7 +220,7 @@ export default async function MachineStatsPage({
               />
             </section>
 
-            <section className="p-4 sm:p-5 rounded-card bg-surface border border-line">
+            <section className="mb-8">
               <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-2">
                 Duration over time
               </p>
@@ -229,7 +229,7 @@ export default async function MachineStatsPage({
           </>
         ) : (
           <>
-            <section className="grid grid-cols-3 gap-3 mb-6">
+            <section className="grid grid-cols-3 gap-x-4 gap-y-7 mb-8">
               <KpiTile
                 label="PR"
                 value={pr ? `${fmtWeight(pr.weight)} × ${pr.reps}` : '—'}
@@ -247,7 +247,7 @@ export default async function MachineStatsPage({
               <KpiTile label="Volume" value={fmtVol(totals.totalVolume)} sublabel="lbs moved" />
             </section>
 
-            <section className="p-4 sm:p-5 rounded-card bg-surface border border-line">
+            <section className="mb-8">
               <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-2">
                 Working set over time
               </p>

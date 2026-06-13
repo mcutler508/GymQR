@@ -107,6 +107,37 @@ html, body {
   color: rgb(var(--ink));
 }
 
+/* Mobile tap-highlight reset.
+   iOS/Android paint a default semi-transparent box on every link/button tap.
+   Looks unpolished on a dark fitness UI. Kill it everywhere, then restore a
+   keyboard-only focus ring via :focus-visible so accessibility doesn't suffer. */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+a, button, [role="button"], [role="tab"], summary, label {
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+a:focus:not(:focus-visible),
+button:focus:not(:focus-visible),
+[role="button"]:focus:not(:focus-visible),
+[role="tab"]:focus:not(:focus-visible),
+summary:focus:not(:focus-visible),
+label:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible,
+summary:focus-visible,
+label:focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* ------------------------------------------------------------------ */
 /* Marketing motion — landing page only                               */
 /*                                                                     */
