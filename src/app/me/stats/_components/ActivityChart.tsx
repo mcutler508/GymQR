@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useDismissChartOnOutside } from './useDismissChartOnOutside';
 import {
   BarChart,
   Bar,
@@ -72,6 +73,8 @@ export function ActivityChart({ buckets, scale, hasCardio }: Props) {
     ? ['sets', 'volume', 'workouts', 'cardio']
     : ['sets', 'volume', 'workouts'];
   const [activeKey, setActiveKey] = useState<MetricKey>('sets');
+  const chartRef = useRef<HTMLDivElement>(null);
+  useDismissChartOnOutside(chartRef);
   const metric = ALL_METRICS[activeKey];
   const scaleWord = SCALE_LABEL[scale];
 
@@ -130,7 +133,7 @@ export function ActivityChart({ buckets, scale, hasCardio }: Props) {
         })}
       </div>
 
-      <div className="h-48 sm:h-56">
+      <div ref={chartRef} className="h-48 sm:h-56">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: -24 }}>
             <CartesianGrid

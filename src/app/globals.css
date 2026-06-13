@@ -138,6 +138,18 @@ label:focus-visible {
   border-radius: 2px;
 }
 
+/* Recharts assigns tabindex to its series <g> elements for chart navigation.
+   On touch, the browser paints its default focus ring around the whole layer
+   the moment you tap inside the SVG — looks like a glitchy white border. We
+   suppress focus styles inside any chart wrapper; the chart itself is still
+   tab-reachable for screen readers, just no rendered ring. */
+.recharts-wrapper :focus,
+.recharts-wrapper :focus-visible,
+.recharts-surface :focus,
+.recharts-surface :focus-visible {
+  outline: none !important;
+}
+
 /* ------------------------------------------------------------------ */
 /* Marketing motion — landing page only                               */
 /*                                                                     */

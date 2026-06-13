@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import {
   LineChart,
   Line,
@@ -13,6 +14,7 @@ import {
 import type { ProgressionPoint } from '@/lib/stats';
 import { ChartTooltip } from '../_components/ChartTooltip';
 import { EmptyState } from '../_components/EmptyState';
+import { useDismissChartOnOutside } from '../_components/useDismissChartOnOutside';
 
 export function ProgressionChart({ points }: { points: ProgressionPoint[] }) {
   if (points.length === 0) {
@@ -34,7 +36,7 @@ export function ProgressionChart({ points }: { points: ProgressionPoint[] }) {
   }
 
   return (
-    <div className="h-72 sm:h-80 w-full mt-2">
+    <ChartShell>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={points} margin={{ top: 32, right: 24, bottom: 8, left: 0 }}>
           <CartesianGrid
@@ -112,6 +114,16 @@ export function ProgressionChart({ points }: { points: ProgressionPoint[] }) {
           />
         </LineChart>
       </ResponsiveContainer>
+    </ChartShell>
+  );
+}
+
+function ChartShell({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDismissChartOnOutside(ref);
+  return (
+    <div ref={ref} className="h-72 sm:h-80 w-full mt-2">
+      {children}
     </div>
   );
 }
