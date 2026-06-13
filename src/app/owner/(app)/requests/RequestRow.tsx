@@ -7,6 +7,7 @@ import { approveRequest, dismissRequest } from './actions';
 type Props = {
   id: string;
   name: string;
+  description: string | null;
   memberName: string | null;
   createdAt: string;
   status: 'pending' | 'approved' | 'dismissed';
@@ -37,6 +38,9 @@ export function RequestRow(props: Props) {
     <li className="flex items-start justify-between gap-4 border-b border-white/10 px-1 py-5">
       <div className="min-w-0">
         <p className="font-display text-lg text-white">{props.name}</p>
+        {props.description && (
+          <p className="mt-1 whitespace-pre-wrap text-sm text-zinc-300">{props.description}</p>
+        )}
         <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.24em] text-zinc-500">
           {props.memberName ?? 'unknown member'} &middot; {fmtRelative(props.createdAt)}
           {!isPending && (

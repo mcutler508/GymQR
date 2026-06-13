@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 type RequestRecord = {
   id: string;
   name: string;
+  description: string | null;
   status: 'pending' | 'approved' | 'dismissed';
   created_at: string;
   members: { name: string } | null;
@@ -28,7 +29,7 @@ export default async function RequestsPage() {
 
   const { data: requests } = await supabase
     .from('equipment_requests')
-    .select('id, name, status, created_at, members(name)')
+    .select('id, name, description, status, created_at, members(name)')
     .eq('gym_id', gym.id)
     .order('created_at', { ascending: false })
     .returns<RequestRecord[]>();
@@ -56,6 +57,7 @@ export default async function RequestsPage() {
                 key={r.id}
                 id={r.id}
                 name={r.name}
+                description={r.description}
                 memberName={r.members?.name ?? null}
                 createdAt={r.created_at}
                 status={r.status}
@@ -74,6 +76,7 @@ export default async function RequestsPage() {
                 key={r.id}
                 id={r.id}
                 name={r.name}
+                description={r.description}
                 memberName={r.members?.name ?? null}
                 createdAt={r.created_at}
                 status={r.status}

@@ -8,10 +8,16 @@ const COOKIE_NAME = 'reptag_member_id';
 
 export async function requestEquipment(input: {
   name: string;
+  description?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const name = input.name.trim();
   if (!name) return { ok: false, error: 'Tell us the machine name.' };
   if (name.length > 80) return { ok: false, error: 'Keep it under 80 characters.' };
+
+  const description = input.description?.trim() ?? '';
+  if (description.length > 500) {
+    return { ok: false, error: 'Keep the description under 500 characters.' };
+  }
 
   const store = await cookies();
   const memberId = store.get(COOKIE_NAME)?.value;
@@ -33,6 +39,7 @@ export async function requestEquipment(input: {
     gym_id: member.gym_id,
     member_id: memberId,
     name,
+    description: description || null,
   });
   if (error) return { ok: false, error: error.message };
 

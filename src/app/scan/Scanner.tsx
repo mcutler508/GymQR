@@ -212,6 +212,7 @@ export function Scanner() {
 function RequestEquipment() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
@@ -219,10 +220,11 @@ function RequestEquipment() {
     e.preventDefault();
     setMsg(null);
     startTransition(async () => {
-      const res = await requestEquipment({ name });
+      const res = await requestEquipment({ name, description });
       if (res.ok) {
         setMsg({ kind: 'ok', text: 'Sent. Your gym will see it in their inbox.' });
         setName('');
+        setDescription('');
       } else {
         setMsg({ kind: 'err', text: res.error });
       }
@@ -257,6 +259,14 @@ function RequestEquipment() {
           autoFocus
           className="w-full px-3 py-2 rounded-lg bg-canvas border border-line focus:border-ink focus:outline-none text-sm"
         />
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Description (optional) — brand, location, why you want it…"
+          maxLength={500}
+          rows={3}
+          className="w-full px-3 py-2 rounded-lg bg-canvas border border-line focus:border-ink focus:outline-none text-sm resize-none"
+        />
         <div className="flex gap-2">
           <button
             type="submit"
@@ -271,6 +281,7 @@ function RequestEquipment() {
               setOpen(false);
               setMsg(null);
               setName('');
+              setDescription('');
             }}
             className="px-3 py-2 rounded-lg border border-line text-sm text-muted"
           >
