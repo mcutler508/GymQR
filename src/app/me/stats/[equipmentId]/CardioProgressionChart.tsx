@@ -68,7 +68,7 @@ export function CardioProgressionChart({ points }: { points: CardioProgressionPo
             tick={{ fill: 'rgb(var(--muted))', fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            width={40}
+            width={48}
             tickFormatter={(v: number) => `${Math.round(v)}m`}
             domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
           />

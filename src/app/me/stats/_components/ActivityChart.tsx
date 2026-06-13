@@ -135,7 +135,7 @@ export function ActivityChart({ buckets, scale, hasCardio }: Props) {
 
       <div ref={chartRef} className="h-48 sm:h-56">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: -24 }}>
+          <BarChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
             <CartesianGrid
               stroke="rgb(var(--line))"
               strokeDasharray="2 4"
@@ -152,7 +152,7 @@ export function ActivityChart({ buckets, scale, hasCardio }: Props) {
               tick={{ fill: 'rgb(var(--muted))', fontSize: 11 }}
               tickLine={false}
               axisLine={false}
-              width={40}
+              width={48}
               tickFormatter={(v: number) => metric.format(v)}
               domain={[0, 'dataMax']}
             />

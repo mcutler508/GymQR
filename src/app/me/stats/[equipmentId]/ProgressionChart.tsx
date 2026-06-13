@@ -59,7 +59,7 @@ export function ProgressionChart({ points }: { points: ProgressionPoint[] }) {
             tick={{ fill: 'rgb(var(--muted))', fontSize: 11 }}
             tickLine={false}
             axisLine={false}
-            width={40}
+            width={48}
             domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
           />
           <Tooltip
