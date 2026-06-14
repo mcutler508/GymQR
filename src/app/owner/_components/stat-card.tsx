@@ -20,29 +20,29 @@ export function StatCard({ label, value, unit, href, emphasis = 'primary' }: Pro
         aria-hidden
         className="absolute right-4 top-4 h-3 w-3 border-r border-t border-white/30 transition-colors group-hover:border-white"
       />
-      <div className="font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500">
+      <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-zinc-500">
         {label}
       </div>
 
-      <div className="mt-10 flex items-baseline gap-2">
+      <div className="mt-8 flex items-baseline gap-2">
         <span
           className={
             emphasis === 'primary'
-              ? 'font-display text-5xl font-light leading-none tracking-tight text-white tabular-nums md:text-6xl'
+              ? 'font-display text-4xl font-light leading-none tracking-tight text-white tabular-nums md:text-5xl'
               : 'font-display text-3xl font-light leading-none tracking-tight text-white tabular-nums md:text-4xl'
           }
         >
           {value}
         </span>
         {unit && (
-          <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500">
+          <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-zinc-500">
             {unit}
           </span>
         )}
       </div>
 
       {href && (
-        <div className="mt-6 flex items-center justify-between border-t border-white/10 pt-4 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-400 transition-colors group-hover:text-white">
+        <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4 font-mono text-[11px] uppercase tracking-[0.22em] text-zinc-400 transition-colors group-hover:text-white">
           <span>View</span>
           <span className="transition-transform group-hover:translate-x-1">→</span>
         </div>

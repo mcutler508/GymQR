@@ -1,8 +1,14 @@
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getServerClient } from '@/lib/supabase-server';
 import { signOutOwner } from '../actions';
+import {
+  LightModeToggle,
+  LIGHT_MODE_COOKIE,
+  lightModeBootScript,
+} from '../_components/light-mode-toggle';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,8 +37,19 @@ export default async function GatedOwnerLayout({
     pendingRequests = count ?? 0;
   }
 
+  const cookieStore = await cookies();
+  const modeCookie = cookieStore.get(LIGHT_MODE_COOKIE)?.value;
+  const isLight = modeCookie === 'light';
+
   return (
-    <div className="relative min-h-screen bg-black text-white">
+    <div
+      id="owner-shell"
+      data-mode={isLight ? 'light' : undefined}
+      className="relative min-h-screen bg-black text-white"
+    >
+      {/* Pre-hydration reconcile: catches the case where another tab
+          flipped localStorage while this tab still has the old cookie. */}
+      <script dangerouslySetInnerHTML={{ __html: lightModeBootScript }} />
       {/* Subtle film grain across the whole owner app for depth. */}
       <div
         aria-hidden
@@ -55,20 +72,17 @@ export default async function GatedOwnerLayout({
       <header className="sticky top-0 z-30 border-b border-white/10 bg-black/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-6 py-5">
           <div className="flex items-baseline gap-6">
-            <Link href="/owner" className="group flex items-center gap-3">
+            <Link href="/owner" className="group flex items-center gap-3" aria-label={gym?.name ?? 'RepetoIQ'}>
               <Image
                 src="/repetoIQicon.png"
                 alt="RepetoIQ"
-                width={48}
-                height={48}
+                width={40}
+                height={40}
                 priority
-                className="h-12 w-12"
+                className="h-10 w-10"
               />
-              <span className="font-display text-xl tracking-tight">
-                {gym?.name ?? 'RepetoIQ'}
-              </span>
-              <span className="hidden font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500 sm:inline">
-                Central Command
+              <span className="hidden font-display text-lg tracking-tight text-white sm:inline">
+                repetoIQ
               </span>
             </Link>
           </div>
@@ -81,14 +95,17 @@ export default async function GatedOwnerLayout({
             <NavLink href="/owner/branding">Settings</NavLink>
           </nav>
 
-          <form action={signOutOwner}>
-            <button
-              type="submit"
-              className="font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500 transition-colors hover:text-white"
-            >
-              Sign out
-            </button>
-          </form>
+          <div className="flex items-center gap-4">
+            <LightModeToggle initialMode={isLight ? 'light' : 'dark'} />
+            <form action={signOutOwner}>
+              <button
+                type="submit"
+                className="font-mono text-[11px] uppercase tracking-[0.22em] text-zinc-500 transition-colors hover:text-white"
+              >
+                Sign out
+              </button>
+            </form>
+          </div>
         </div>
 
         {/* Mobile nav */}
@@ -98,6 +115,9 @@ export default async function GatedOwnerLayout({
           <NavLink href="/owner/members">Members</NavLink>
           <NavLink href="/owner/requests" badge={pendingRequests}>Requests</NavLink>
           <NavLink href="/owner/branding">Settings</NavLink>
+          <span className="ml-auto">
+            <LightModeToggle initialMode={isLight ? 'light' : 'dark'} />
+          </span>
         </nav>
       </header>
 

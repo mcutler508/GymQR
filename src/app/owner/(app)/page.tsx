@@ -22,7 +22,7 @@ export default async function OwnerDashboard() {
   if (!gym) {
     return (
       <div className="border-l-2 border-white/40 py-10 pl-6">
-        <div className="font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500">
+        <div className="font-mono text-[11px] uppercase tracking-[0.22em] text-zinc-500">
           Anomaly
         </div>
         <p className="mt-3 font-display text-2xl text-white">
@@ -144,7 +144,7 @@ export default async function OwnerDashboard() {
         </div>
       </section>
 
-      <footer className="flex items-center justify-between border-t border-white/10 pt-6 font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-600">
+      <footer className="flex items-center justify-between border-t border-white/10 pt-6 font-mono text-[11px] uppercase tracking-[0.22em] text-zinc-600">
         <span>RepetoIQ &middot; Central Command</span>
         <span>{dateStamp}</span>
       </footer>

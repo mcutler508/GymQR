@@ -304,6 +304,239 @@ label:focus-visible {
   pointer-events: none;
 }
 
+/* ------------------------------------------------------------------ */
+/* Owner light mode                                                    */
+/*                                                                     */
+/* Tuned inverse of the default dark owner UI. Scoped to any subtree   */
+/* with [data-mode="light"] — typically the owner (app) shell. We      */
+/* remap the specific Tailwind utility classes that owner pages use    */
+/* rather than refactor every file. Most text is near-black; a small   */
+/* curated palette (blue/green/orange/rose/red) is available for       */
+/* accents on status pills, dots, and badges.                          */
+/* ------------------------------------------------------------------ */
+
+[data-mode='light'] {
+  /* Curated accent palette — high-quality, lightly saturated. */
+  --lm-blue: 37 99 235;       /* trust / scans */
+  --lm-green: 5 150 105;      /* success / sets */
+  --lm-orange: 234 88 12;     /* equipment / warmth */
+  --lm-rose: 225 29 72;       /* member / warmth */
+  --lm-red: 220 38 38;        /* danger / pending */
+
+  /* Canvas + surfaces */
+  --lm-canvas: 252 252 252;
+  --lm-surface: 255 255 255;
+  --lm-surface-2: 247 247 247;
+  --lm-surface-3: 240 240 240;
+
+  /* Ink tones — most text is near-black with strong contrast. */
+  --lm-ink: 10 10 10;
+  --lm-ink-2: 24 24 24;
+  --lm-ink-3: 51 51 51;
+  --lm-ink-4: 82 82 82;
+  --lm-ink-5: 115 115 115;
+  --lm-ink-6: 161 161 161;
+}
+
+/* The film grain overlay relies on mix-blend on a noise SVG. On dark it
+   reads as depth; on white it reads as DUST. Kill it entirely. */
+[data-mode='light'] .mix-blend-screen,
+[data-mode='light'] .opacity-\[0\.03\].mix-blend-screen {
+  display: none;
+}
+
+/* --- Backgrounds --------------------------------------------------- */
+[data-mode='light'].bg-black,
+[data-mode='light'] .bg-black {
+  background-color: rgb(var(--lm-canvas));
+}
+[data-mode='light'] .bg-black\/80 {
+  background-color: rgb(var(--lm-canvas) / 0.85);
+}
+[data-mode='light'] .bg-zinc-950,
+[data-mode='light'] .bg-neutral-950 {
+  background-color: rgb(var(--lm-surface));
+}
+[data-mode='light'] .bg-zinc-950\/50 {
+  background-color: rgb(var(--lm-surface) / 0.6);
+}
+[data-mode='light'] .bg-zinc-900,
+[data-mode='light'] .bg-neutral-900 {
+  background-color: rgb(var(--lm-surface-2));
+}
+[data-mode='light'] .bg-zinc-800,
+[data-mode='light'] .bg-neutral-800 {
+  background-color: rgb(var(--lm-surface-3));
+}
+/* Inverted "primary" buttons (bg-white text-black, bg-neutral-100 text-neutral-900)
+   need to become dark-on-light style buttons: keep them visually "filled" and
+   high-contrast, but with the right luminance for the white canvas. */
+[data-mode='light'] .bg-white,
+[data-mode='light'] .bg-neutral-100 {
+  background-color: rgb(var(--lm-ink));
+}
+[data-mode='light'] .bg-white\/5 {
+  background-color: rgb(15 15 15 / 0.04);
+}
+[data-mode='light'] .bg-white\/10 {
+  background-color: rgb(15 15 15 / 0.07);
+}
+[data-mode='light'] .hover\:bg-zinc-950:hover {
+  background-color: rgb(var(--lm-surface-2));
+}
+[data-mode='light'] .hover\:bg-neutral-900:hover {
+  background-color: rgb(var(--lm-surface-2));
+}
+[data-mode='light'] .hover\:bg-white:hover {
+  background-color: rgb(var(--lm-ink-2));
+}
+
+/* --- Text colors --------------------------------------------------- */
+/* The owner shell sets text-white on the same element as data-mode="light".
+   We need BOTH the self-match selector ([data-mode]&.text-white, no space)
+   and the descendant selector ([data-mode] .text-white) — otherwise every
+   child inheriting from the shell stays pure white. */
+[data-mode='light'].text-white,
+[data-mode='light'] .text-white,
+[data-mode='light'] .text-zinc-50,
+[data-mode='light'] .text-zinc-100,
+[data-mode='light'] .text-neutral-50,
+[data-mode='light'] .text-neutral-100 {
+  color: rgb(var(--lm-ink));
+}
+[data-mode='light'] .text-zinc-200,
+[data-mode='light'] .text-neutral-200,
+[data-mode='light'] .text-zinc-300,
+[data-mode='light'] .text-neutral-300 {
+  color: rgb(var(--lm-ink-2));
+}
+[data-mode='light'] .text-zinc-400,
+[data-mode='light'] .text-neutral-400 {
+  color: rgb(var(--lm-ink-3));
+}
+[data-mode='light'] .text-zinc-500,
+[data-mode='light'] .text-neutral-500 {
+  color: rgb(var(--lm-ink-4));
+}
+[data-mode='light'] .text-zinc-600,
+[data-mode='light'] .text-neutral-600 {
+  color: rgb(var(--lm-ink-5));
+}
+[data-mode='light'] .text-zinc-700,
+[data-mode='light'] .text-neutral-700 {
+  color: rgb(var(--lm-ink-6));
+}
+/* "text-black" / "text-neutral-900" live on *inverted* buttons that we
+   just darkened the bg of. Flip them to white so the labels read. */
+[data-mode='light'] .text-black,
+[data-mode='light'] .text-neutral-900 {
+  color: rgb(255 255 255);
+}
+[data-mode='light'] .hover\:text-white:hover,
+[data-mode='light'] .group:hover .group-hover\:text-white,
+[data-mode='light'] .hover\:text-neutral-200:hover {
+  color: rgb(var(--lm-ink));
+}
+[data-mode='light'] .placeholder\:text-zinc-700::placeholder {
+  color: rgb(var(--lm-ink-6));
+}
+
+/* Form input bg-transparent: parent inherits bg, text inherits ink — good.
+   But text-white inside an input element renders too dark for placeholder.
+   The .placeholder rule above handles that. */
+
+
+/* --- Borders ------------------------------------------------------- */
+[data-mode='light'] .border-white\/10 {
+  border-color: rgb(15 15 15 / 0.09);
+}
+[data-mode='light'] .border-white\/15 {
+  border-color: rgb(15 15 15 / 0.13);
+}
+[data-mode='light'] .border-white\/20 {
+  border-color: rgb(15 15 15 / 0.16);
+}
+[data-mode='light'] .border-white\/30 {
+  border-color: rgb(15 15 15 / 0.22);
+}
+[data-mode='light'] .border-white\/40 {
+  border-color: rgb(15 15 15 / 0.32);
+}
+[data-mode='light'] .border-zinc-700,
+[data-mode='light'] .border-neutral-700 {
+  border-color: rgb(15 15 15 / 0.22);
+}
+[data-mode='light'] .border-zinc-800,
+[data-mode='light'] .border-neutral-800 {
+  border-color: rgb(15 15 15 / 0.12);
+}
+[data-mode='light'] .border-neutral-600 {
+  border-color: rgb(15 15 15 / 0.28);
+}
+[data-mode='light'] .border-neutral-300 {
+  border-color: rgb(15 15 15 / 0.6);
+}
+[data-mode='light'] .hover\:border-white:hover,
+[data-mode='light'] .group:hover .group-hover\:border-white {
+  border-color: rgb(var(--lm-ink));
+}
+[data-mode='light'] .hover\:border-white\/40:hover {
+  border-color: rgb(15 15 15 / 0.4);
+}
+[data-mode='light'] .hover\:border-neutral-700:hover {
+  border-color: rgb(15 15 15 / 0.28);
+}
+[data-mode='light'] .focus\:border-neutral-500:focus {
+  border-color: rgb(15 15 15 / 0.5);
+}
+
+/* --- Gradient stops (header rule, hero gradient text) -------------- */
+[data-mode='light'] .from-white\/40 {
+  --tw-gradient-from: rgb(15 15 15 / 0.4) var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(15 15 15 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-via, ), var(--tw-gradient-to);
+}
+[data-mode='light'] .via-white\/10 {
+  --tw-gradient-via: rgb(15 15 15 / 0.1) var(--tw-gradient-via-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to);
+}
+
+/* Checkbox accent-white reads as invisible against a near-white surface.
+   Re-tint to ink so the check has real contrast. */
+[data-mode='light'] .accent-white {
+  accent-color: rgb(var(--lm-ink));
+}
+
+/* --- Curated accent helpers ---------------------------------------- */
+/* Small color "dots" or vertical ticks on stat cards. Use these via   */
+/* class names rather than swapping component APIs.                    */
+[data-mode='light'] .accent-blue   { color: rgb(var(--lm-blue)); }
+[data-mode='light'] .accent-green  { color: rgb(var(--lm-green)); }
+[data-mode='light'] .accent-orange { color: rgb(var(--lm-orange)); }
+[data-mode='light'] .accent-rose   { color: rgb(var(--lm-rose)); }
+[data-mode='light'] .accent-red    { color: rgb(var(--lm-red)); }
+
+/* Status accents that should still pop in light mode. */
+[data-mode='light'] .text-emerald-400 {
+  color: rgb(var(--lm-green));
+}
+
+/* Pending-request badge in the nav: in dark mode it's white-on-black; */
+/* in light mode flip it to a real red so it actually reads as urgent. */
+[data-mode='light'] nav .bg-white.text-black {
+  background-color: rgb(var(--lm-red));
+  color: rgb(255 255 255);
+}
+
+/* --- Recharts in light mode --------------------------------------- */
+/* Charts use white/zinc strokes by default; let them inherit ink.    */
+[data-mode='light'] .recharts-cartesian-axis-tick text {
+  fill: rgb(var(--lm-ink-4));
+}
+[data-mode='light'] .recharts-cartesian-grid line {
+  stroke: rgb(15 15 15 / 0.08);
+}
+
 /* Print styles for the QR sticker page.
    When printing, hide everything except the .sticker container. */
 @media print {

@@ -138,12 +138,14 @@ export function MemberStatsClient({
           value={fmtVol(hero.volume)}
           sublabel={`lbs ${sublabel}`}
           delta={makeDelta(hero.volume, prior?.volume ?? null, (n) => `${fmtVol(Math.abs(n))} lbs`)}
+          href={`/me/stats/breakdown?metric=volume&range=${range}`}
         />
         <KpiTile
           label="Sets"
           value={String(hero.setCount)}
           sublabel={sublabel}
           delta={makeDelta(hero.setCount, prior?.setCount ?? null, (n) => String(Math.abs(n)))}
+          href={`/me/stats/breakdown?metric=sets&range=${range}`}
         />
         <KpiTile
           label="Workouts"

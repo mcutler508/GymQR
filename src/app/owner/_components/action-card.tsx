@@ -19,7 +19,7 @@ export function ActionCard({ index, title, blurb, href }: Props) {
       className="group block border-b border-white/10 py-7 transition-colors hover:border-white/40"
     >
       <div className="grid grid-cols-[auto_1fr_auto] items-baseline gap-6">
-        <span className="font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500 transition-colors group-hover:text-white">
+        <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-zinc-500 transition-colors group-hover:text-white">
           {index}
         </span>
 

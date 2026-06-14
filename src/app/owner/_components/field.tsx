@@ -19,7 +19,7 @@ export function Field({ label, value, onChange, ...rest }: Props) {
     <div className="group relative">
       <label
         htmlFor={id}
-        className="block font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500"
+        className="block font-mono text-[11px] uppercase tracking-[0.22em] text-zinc-500"
       >
         {label}
       </label>
