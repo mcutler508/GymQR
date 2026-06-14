@@ -93,7 +93,7 @@ export function ActivityChart({ buckets, scale, hasCardio }: Props) {
     data.length > 8 ? Math.ceil(data.length / 6) - 1 : 0;
 
   return (
-    <section className="mb-8">
+    <section className="mb-8 rounded-card bg-surface-2 p-4 sm:p-5">
       <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
         <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">
           Activity · last {data.length} {data.length === 1 ? scaleWord : `${scaleWord}s`}

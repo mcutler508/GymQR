@@ -106,18 +106,20 @@ export default async function MemberDashboard() {
           <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-3">
             This month
           </h2>
-          <section className="grid grid-cols-3 gap-x-4 gap-y-2 mb-9">
-            <DashboardStat label="Sets" value={String(monthTotals.totalSets)} />
-            <DashboardStat
-              label="Workouts"
-              value={String(monthTotals.workoutDays)}
-              suffix={monthTotals.workoutDays === 1 ? 'day' : 'days'}
-            />
-            <DashboardStat
-              label="Streak"
-              value={streak >= 1 ? String(streak) : '—'}
-              suffix={streak >= 1 ? (streak === 1 ? 'day' : 'days') : undefined}
-            />
+          <section className="mb-9 rounded-card bg-surface p-5">
+            <div className="grid grid-cols-3 gap-x-4 gap-y-2">
+              <DashboardStat label="Sets" value={String(monthTotals.totalSets)} />
+              <DashboardStat
+                label="Workouts"
+                value={String(monthTotals.workoutDays)}
+                suffix={monthTotals.workoutDays === 1 ? 'day' : 'days'}
+              />
+              <DashboardStat
+                label="Streak"
+                value={streak >= 1 ? String(streak) : '—'}
+                suffix={streak >= 1 ? (streak === 1 ? 'day' : 'days') : undefined}
+              />
+            </div>
           </section>
 
           {(lastSet || pr) && (

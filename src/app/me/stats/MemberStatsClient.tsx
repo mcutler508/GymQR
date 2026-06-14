@@ -132,39 +132,41 @@ export function MemberStatsClient({
         <RangePicker value={range} onChange={changeRange} />
       </div>
 
-      <section className="grid grid-cols-2 gap-x-6 gap-y-7 mb-9">
-        <KpiTile
-          label="Volume"
-          value={fmtVol(hero.volume)}
-          sublabel={`lbs ${sublabel}`}
-          delta={makeDelta(hero.volume, prior?.volume ?? null, (n) => `${fmtVol(Math.abs(n))} lbs`)}
-          href={`/me/stats/breakdown?metric=volume&range=${range}`}
-          hrefLabel="By body part"
-        />
-        <KpiTile
-          label="Sets"
-          value={String(hero.setCount)}
-          sublabel={sublabel}
-          delta={makeDelta(hero.setCount, prior?.setCount ?? null, (n) => String(Math.abs(n)))}
-          href={`/me/stats/breakdown?metric=sets&range=${range}`}
-          hrefLabel="By body part"
-        />
-        <KpiTile
-          label="Workouts"
-          value={String(hero.workoutDays)}
-          sublabel={`days ${sublabel}`}
-          delta={makeDelta(hero.workoutDays, prior?.workoutDays ?? null, (n) => `${Math.abs(n)} ${Math.abs(n) === 1 ? 'day' : 'days'}`)}
-        />
-        <KpiTile
-          label="Lifetime PR"
-          value={
-            hero.lifetimePr
-              ? `${fmtWeight(hero.lifetimePr.weight)} × ${hero.lifetimePr.reps}`
-              : '—'
-          }
-          sublabel={hero.lifetimePr ? 'all time' : 'no sets yet'}
-          accent={!!hero.lifetimePr}
-        />
+      <section className="mb-8 rounded-card bg-surface p-5 sm:p-6">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-7">
+          <KpiTile
+            label="Volume"
+            value={fmtVol(hero.volume)}
+            sublabel={`lbs ${sublabel}`}
+            delta={makeDelta(hero.volume, prior?.volume ?? null, (n) => `${fmtVol(Math.abs(n))} lbs`)}
+            href={`/me/stats/breakdown?metric=volume&range=${range}`}
+            hrefLabel="By body part"
+          />
+          <KpiTile
+            label="Sets"
+            value={String(hero.setCount)}
+            sublabel={sublabel}
+            delta={makeDelta(hero.setCount, prior?.setCount ?? null, (n) => String(Math.abs(n)))}
+            href={`/me/stats/breakdown?metric=sets&range=${range}`}
+            hrefLabel="By body part"
+          />
+          <KpiTile
+            label="Workouts"
+            value={String(hero.workoutDays)}
+            sublabel={`days ${sublabel}`}
+            delta={makeDelta(hero.workoutDays, prior?.workoutDays ?? null, (n) => `${Math.abs(n)} ${Math.abs(n) === 1 ? 'day' : 'days'}`)}
+          />
+          <KpiTile
+            label="Lifetime PR"
+            value={
+              hero.lifetimePr
+                ? `${fmtWeight(hero.lifetimePr.weight)} × ${hero.lifetimePr.reps}`
+                : '—'
+            }
+            sublabel={hero.lifetimePr ? 'all time' : 'no sets yet'}
+            accent={!!hero.lifetimePr}
+          />
+        </div>
       </section>
 
       {hasAnySets && <ActivityChart buckets={buckets} scale={scale} hasCardio={hasCardio} />}

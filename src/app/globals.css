@@ -57,11 +57,15 @@
 }
 
 [data-theme='locker-room'] {
-  --canvas: 250 250 249;
-  --surface: 255 255 255;
-  --surface-2: 245 245 244;
-  --line: 231 229 228;
-  --line-soft: 240 239 237;
+  /* Light theme separation rebuild: canvas is a warm cream BASE; surface and
+     surface-2 are darker tints that sit on it as visible panels. Old values
+     had canvas at 250 and surface at 255 (whiter than the page), which made
+     panels invisible on phones — everything bled into the same white. */
+  --canvas: 246 242 234;
+  --surface: 255 253 249;
+  --surface-2: 240 235 226;
+  --line: 220 213 200;
+  --line-soft: 232 226 215;
   --ink: 28 25 23;
   --muted: 120 113 108;
   --muted-strong: 68 64 60;
