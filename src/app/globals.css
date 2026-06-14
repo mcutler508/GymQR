@@ -537,6 +537,22 @@ label:focus-visible {
   stroke: rgb(15 15 15 / 0.08);
 }
 
+/* ------------------------------------------------------------------ */
+/* RepetoIQ logo on light themes                                       */
+/*                                                                     */
+/* The packaged repetoIQicon.png / repetoIQlogo.png assets are pure    */
+/* white silhouettes designed for dark canvases. On a light canvas     */
+/* (locker-room theme) they vanish. brightness(0) turns them into a    */
+/* solid black silhouette — same shape, readable contrast, no new     */
+/* asset needed. Targets the filename via substring match so it works  */
+/* whether the <img> src is the raw /public path or Next.js's          */
+/* /_next/image?url=%2FrepetoIQicon.png optimized URL.                  */
+/* ------------------------------------------------------------------ */
+[data-theme='locker-room'] img[src*='repetoIQicon'],
+[data-theme='locker-room'] img[src*='repetoIQlogo'] {
+  filter: brightness(0);
+}
+
 /* Print styles for the QR sticker page.
    When printing, hide everything except the .sticker container. */
 @media print {
