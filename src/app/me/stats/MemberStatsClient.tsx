@@ -139,6 +139,7 @@ export function MemberStatsClient({
           sublabel={`lbs ${sublabel}`}
           delta={makeDelta(hero.volume, prior?.volume ?? null, (n) => `${fmtVol(Math.abs(n))} lbs`)}
           href={`/me/stats/breakdown?metric=volume&range=${range}`}
+          hrefLabel="By body part"
         />
         <KpiTile
           label="Sets"
@@ -146,6 +147,7 @@ export function MemberStatsClient({
           sublabel={sublabel}
           delta={makeDelta(hero.setCount, prior?.setCount ?? null, (n) => String(Math.abs(n)))}
           href={`/me/stats/breakdown?metric=sets&range=${range}`}
+          hrefLabel="By body part"
         />
         <KpiTile
           label="Workouts"

@@ -8,6 +8,8 @@ type Props = {
   delta?: Delta | null;
   accent?: boolean;
   href?: string;
+  /** Short mono caption shown top-right when `href` is set (e.g. "BY BODY PART"). */
+  hrefLabel?: string;
 };
 
 /**
@@ -15,20 +17,23 @@ type Props = {
  * no boxes, no borders, no card chrome. Strong/Hevy style: the typography is
  * the design.
  *
- * When `href` is set, the tile renders as a Link with a small `›` glyph on
- * the label so the affordance is visible without adding a box around it.
+ * When `href` is set, the tile renders as a Link and shows a top-right caption
+ * (`hrefLabel ›`, accent-colored) so the tap affordance is unambiguous without
+ * boxing the tile.
  */
-export function KpiTile({ label, value, sublabel, delta, accent, href }: Props) {
+export function KpiTile({ label, value, sublabel, delta, accent, href, hrefLabel }: Props) {
   const content = (
     <>
-      <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">
-        {label}
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">
+          {label}
+        </p>
         {href && (
-          <span aria-hidden className="ml-1.5 text-muted-strong">
-            ›
-          </span>
+          <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-accent font-medium whitespace-nowrap">
+            {hrefLabel ?? 'View'} <span aria-hidden>›</span>
+          </p>
         )}
-      </p>
+      </div>
       <p
         className={[
           'mt-2 font-display tabular-nums leading-none',
