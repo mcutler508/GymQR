@@ -1,11 +1,12 @@
-import Image from 'next/image';
-import Link from 'next/link';
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { MemberStatsClient, type ClientSet, type EquipmentMeta } from './MemberStatsClient';
-import type { GymTheme } from '@/app/scan/[qrSlug]/page';
+import {
+  MemberStatsClient,
+  type ClientSet,
+  type EquipmentMeta,
+} from '@/app/me/stats/MemberStatsClient';
 import type { EquipmentType } from '@/lib/supabase';
+import type { GymTheme } from '@/app/scan/[qrSlug]/page';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,10 +36,9 @@ const HEADER_CLASSES = [
   'athletic:text-4xl athletic:font-black athletic:italic athletic:uppercase',
 ].join(' ');
 
-export default async function MyStatsPage() {
+export default async function MemberStatsPage() {
   const store = await cookies();
-  const memberId = store.get(COOKIE_NAME)?.value;
-  if (!memberId) return <Unidentified />;
+  const memberId = store.get(COOKIE_NAME)!.value;
 
   const { data: member } = await supabase
     .from('members')
@@ -51,12 +51,9 @@ export default async function MyStatsPage() {
       gyms: { name: string; theme: GymTheme; timezone: string } | null;
     }>();
 
-  if (!member) {
-    redirect('/');
-  }
-
-  const theme: GymTheme = member.gyms?.theme ?? 'halogen';
-  const timezone = member.gyms?.timezone ?? 'UTC';
+  const memberName = member?.name ?? 'Member';
+  const gymName = member?.gyms?.name ?? 'Gym';
+  const timezone = member?.gyms?.timezone ?? 'UTC';
 
   const { data: setsRaw } = await supabase
     .from('sets')
@@ -69,8 +66,6 @@ export default async function MyStatsPage() {
 
   const setsRows = setsRaw ?? [];
 
-  // Distinct equipment metadata for the client (drop the joined object so the
-  // serialized payload doesn't carry it on every set).
   const equipmentById = new Map<string, EquipmentMeta>();
   for (const s of setsRows) {
     if (!s.equipment || equipmentById.has(s.equipment.id)) continue;
@@ -94,57 +89,13 @@ export default async function MyStatsPage() {
   }));
 
   return (
-    <div data-theme={theme} className="min-h-screen bg-canvas text-ink">
-      <main className="p-6 max-w-2xl mx-auto pb-20">
-        <div className="mb-6 flex items-center gap-2">
-          <Image
-            src="/repetoIQicon.png"
-            alt="RepetoIQ"
-            width={40}
-            height={40}
-            className="h-10 w-10"
-          />
-          <span className="font-display text-sm tracking-tight text-muted">RepetoIQ</span>
-        </div>
-        <MemberStatsClient
-          memberName={member.name}
-          gymName={member.gyms?.name ?? 'Gym'}
-          themeClassNames={HEADER_CLASSES}
-          sets={sets}
-          equipment={equipment}
-          timezone={timezone}
-        />
-
-        <p className="mt-10 text-center">
-          <Link href="/scan" className="text-sm underline text-muted">
-            ← Back to scanner
-          </Link>
-        </p>
-      </main>
-    </div>
-  );
-}
-
-function Unidentified() {
-  return (
-    <main className="p-6 max-w-md mx-auto text-center bg-canvas text-ink min-h-screen pt-16">
-      <Image
-        src="/repetoIQicon.png"
-        alt="RepetoIQ"
-        width={80}
-        height={80}
-        className="mx-auto mb-4 h-20 w-20"
-      />
-      <h1 className="text-xl font-semibold mb-2">Sign in first</h1>
-      <p className="text-muted text-sm mb-6">
-        Scan a QR sticker on a machine to identify yourself, then come back here for stats.
-      </p>
-      <Link
-        href="/scan"
-        className="inline-block px-4 py-2 rounded border border-line text-sm"
-      >
-        Open scanner
-      </Link>
-    </main>
+    <MemberStatsClient
+      memberName={memberName}
+      gymName={gymName}
+      themeClassNames={HEADER_CLASSES}
+      sets={sets}
+      equipment={equipment}
+      timezone={timezone}
+    />
   );
 }
