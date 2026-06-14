@@ -106,6 +106,9 @@ function IdentityPrompt({
       ) : (
         <SignInForm equipment={equipment} />
       )}
+      <p className="mt-14 text-center text-[10px] font-mono uppercase tracking-[0.28em] text-muted">
+        Powered by RepetoIQ
+      </p>
     </main>
   );
 }

@@ -60,6 +60,10 @@ export default async function MemberProfilePage() {
       <p className="mt-4 text-center text-[10px] font-mono uppercase tracking-[0.2em] text-muted">
         Signing out clears this device · your sets stay safe on the gym roster
       </p>
+
+      <p className="mt-14 text-center text-[10px] font-mono uppercase tracking-[0.28em] text-muted">
+        Powered by RepetoIQ
+      </p>
     </>
   );
 }
