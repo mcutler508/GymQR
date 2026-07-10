@@ -21,6 +21,7 @@ import {
   createMemberAction,
   signInMemberAction,
   setPasscodeAction,
+  requestResetAction,
   logSet,
   signOutMember,
 } from './actions';
@@ -77,7 +78,7 @@ function IdentityPrompt({
   equipment: Equipment;
   gymName: string;
 }) {
-  const [mode, setMode] = useState<'create' | 'signin'>('create');
+  const [mode, setMode] = useState<'create' | 'signin' | 'forgot'>('create');
   return (
     <main className="p-6 max-w-md mx-auto">
       <Header equipment={equipment} gymName={gymName} />
@@ -95,16 +96,23 @@ function IdentityPrompt({
           type="button"
           onClick={() => setMode('signin')}
           className={`px-3 py-1.5 rounded-sm transition ${
-            mode === 'signin' ? 'bg-accent text-accent-ink font-medium' : 'text-muted'
+            mode === 'signin' || mode === 'forgot'
+              ? 'bg-accent text-accent-ink font-medium'
+              : 'text-muted'
           }`}
         >
           Returning
         </button>
       </div>
-      {mode === 'create' ? (
-        <CreateForm equipment={equipment} />
-      ) : (
-        <SignInForm equipment={equipment} />
+      {mode === 'create' && <CreateForm equipment={equipment} />}
+      {mode === 'signin' && (
+        <SignInForm equipment={equipment} onForgot={() => setMode('forgot')} />
+      )}
+      {mode === 'forgot' && (
+        <ForgotPasscodeForm
+          equipment={equipment}
+          onBack={() => setMode('signin')}
+        />
       )}
       <p className="mt-14 text-center text-[10px] font-mono uppercase tracking-[0.28em] text-muted">
         Powered by RepetoIQ
@@ -116,6 +124,7 @@ function IdentityPrompt({
 function CreateForm({ equipment }: { equipment: Equipment }) {
   const router = useRouter();
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [passcode, setPasscode] = useState('');
   const [confirm, setConfirm] = useState('');
   const [pending, startTransition] = useTransition();
@@ -124,6 +133,9 @@ function CreateForm({ equipment }: { equipment: Equipment }) {
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErr(null);
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return setErr('Enter a valid email address.');
+    }
     if (!/^\d{4}$/.test(passcode)) return setErr('Passcode must be exactly 4 digits.');
     if (passcode !== confirm) return setErr('Passcodes don’t match.');
     startTransition(async () => {
@@ -131,10 +143,10 @@ function CreateForm({ equipment }: { equipment: Equipment }) {
         const m = await createMemberAction({
           gymId: equipment.gym_id,
           name,
+          email,
           passcode,
         });
         try {
-          localStorage.setItem('reptag_member_id', m.id);
           localStorage.setItem('reptag_member_name', m.name);
         } catch {
           /* private mode */
@@ -149,20 +161,38 @@ function CreateForm({ equipment }: { equipment: Equipment }) {
   return (
     <form onSubmit={onSubmit} className="mt-6 space-y-4">
       <Field label="Your name" value={name} onChange={setName} placeholder="e.g. Mike" autoFocus />
+      <Field
+        label="Email"
+        value={email}
+        onChange={setEmail}
+        placeholder="you@example.com"
+        type="email"
+        autoComplete="email"
+      />
       <PasscodeField label="Choose a 4-digit passcode" value={passcode} onChange={setPasscode} />
       <PasscodeField label="Confirm passcode" value={confirm} onChange={setConfirm} />
-      <PrimaryButton type="submit" disabled={pending || !name.trim() || !passcode || !confirm}>
+      <PrimaryButton
+        type="submit"
+        disabled={pending || !name.trim() || !email.trim() || !passcode || !confirm}
+      >
         {pending ? 'Creating…' : 'Continue'}
       </PrimaryButton>
       {err && <p className="text-sm text-red-400">{err}</p>}
       <p className="text-xs text-muted">
-        Your name + 4-digit passcode let you pull up your history on any phone.
+        Name + passcode lets you sign in from any phone. Email is only used if you forget your
+        passcode.
       </p>
     </form>
   );
 }
 
-function SignInForm({ equipment }: { equipment: Equipment }) {
+function SignInForm({
+  equipment,
+  onForgot,
+}: {
+  equipment: Equipment;
+  onForgot: () => void;
+}) {
   const router = useRouter();
   const [name, setName] = useState('');
   const [passcode, setPasscode] = useState('');
@@ -181,7 +211,6 @@ function SignInForm({ equipment }: { equipment: Equipment }) {
           passcode,
         });
         try {
-          localStorage.setItem('reptag_member_id', m.id);
           localStorage.setItem('reptag_member_name', m.name);
         } catch {
           /* */
@@ -201,7 +230,87 @@ function SignInForm({ equipment }: { equipment: Equipment }) {
         {pending ? 'Signing in…' : 'Continue'}
       </PrimaryButton>
       {err && <p className="text-sm text-red-400">{err}</p>}
-      <p className="text-xs text-muted">Forgot your passcode? Ask gym staff to reset it.</p>
+      <p className="text-xs text-muted">
+        Forgot your passcode?{' '}
+        <button type="button" onClick={onForgot} className="underline text-muted-strong">
+          Reset it by email
+        </button>
+        .
+      </p>
+    </form>
+  );
+}
+
+function ForgotPasscodeForm({
+  equipment,
+  onBack,
+}: {
+  equipment: Equipment;
+  onBack: () => void;
+}) {
+  const [email, setEmail] = useState('');
+  const [pending, startTransition] = useTransition();
+  const [sent, setSent] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setErr(null);
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return setErr('Enter a valid email address.');
+    }
+    startTransition(async () => {
+      try {
+        await requestResetAction({ gymId: equipment.gym_id, email });
+        setSent(true);
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : 'Could not send reset email.');
+      }
+    });
+  }
+
+  if (sent) {
+    return (
+      <div className="mt-6 space-y-4">
+        <div className="p-4 rounded-card bg-surface border border-line">
+          <p className="text-sm text-muted-strong">
+            If that email is on file at this gym, we sent a reset link. Open it on your phone —
+            the link expires in 30 minutes.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="w-full px-4 py-3 rounded bg-surface border border-line text-sm font-medium hover:border-muted transition"
+        >
+          Back to sign in
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="mt-6 space-y-4">
+      <Field
+        label="Email on file"
+        value={email}
+        onChange={setEmail}
+        placeholder="you@example.com"
+        type="email"
+        autoComplete="email"
+        autoFocus
+      />
+      <PrimaryButton type="submit" disabled={pending || !email.trim()}>
+        {pending ? 'Sending…' : 'Send reset link'}
+      </PrimaryButton>
+      {err && <p className="text-sm text-red-400">{err}</p>}
+      <button
+        type="button"
+        onClick={onBack}
+        className="w-full text-center text-xs text-muted underline"
+      >
+        Back to sign in
+      </button>
     </form>
   );
 }
@@ -918,22 +1027,30 @@ function Field({
   onChange,
   placeholder,
   autoFocus,
+  type = 'text',
+  autoComplete,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   autoFocus?: boolean;
+  type?: 'text' | 'email';
+  autoComplete?: string;
 }) {
   return (
     <label className="block">
       <span className="block text-sm text-muted mb-1">{label}</span>
       <input
-        type="text"
+        type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        autoComplete={autoComplete}
+        inputMode={type === 'email' ? 'email' : undefined}
+        autoCapitalize={type === 'email' ? 'off' : undefined}
+        spellCheck={type === 'email' ? false : undefined}
         className="w-full px-4 py-4 text-lg rounded bg-surface border border-line text-ink placeholder:text-muted focus:border-accent focus:outline-none"
       />
     </label>

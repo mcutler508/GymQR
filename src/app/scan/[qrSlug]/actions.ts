@@ -1,26 +1,25 @@
 'use server';
 
-import { cookies, headers } from 'next/headers';
+import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabase';
-import { createMember, signInMember, setPasscode } from '@/lib/auth-member';
-
-const COOKIE_NAME = 'reptag_member_id';
-const ONE_YEAR = 60 * 60 * 24 * 365;
-
-async function setMemberCookie(memberId: string) {
-  const store = await cookies();
-  store.set(COOKIE_NAME, memberId, {
-    httpOnly: false,
-    sameSite: 'lax',
-    maxAge: ONE_YEAR,
-    path: '/',
-  });
-}
+import {
+  createMember,
+  signInMember,
+  setPasscode,
+  requestPasswordReset,
+} from '@/lib/auth-member';
+import {
+  setMemberCookie,
+  clearMemberCookie,
+  readMemberCookie,
+} from '@/lib/member-cookie';
+import { sendEmail, buildResetEmail } from '@/lib/email';
 
 export async function createMemberAction(input: {
   gymId: string;
   name: string;
+  email: string;
   passcode: string;
 }): Promise<{ id: string; name: string }> {
   const m = await createMember(input);
@@ -45,7 +44,7 @@ export async function signInMemberAction(input: {
         .from('members')
         .select('id, name')
         .eq('gym_id', input.gymId)
-        .ilike('name', input.name.trim())
+        .ilike('name', input.name.trim().replace(/([\\%_])/g, '\\$1'))
         .maybeSingle();
       if (data) {
         await setMemberCookie(data.id);
@@ -57,10 +56,35 @@ export async function signInMemberAction(input: {
 }
 
 export async function setPasscodeAction(input: { passcode: string }): Promise<void> {
-  const store = await cookies();
-  const memberId = store.get(COOKIE_NAME)?.value;
+  const memberId = await readMemberCookie();
   if (!memberId) throw new Error('Not signed in');
   await setPasscode({ memberId, passcode: input.passcode });
+}
+
+/**
+ * Kick off self-serve reset. Deliberately returns the same shape whether or
+ * not the email matches a real member — the UI shows a generic "check your
+ * inbox" message so a stranger can't probe the gym's email list.
+ */
+export async function requestResetAction(input: {
+  gymId: string;
+  email: string;
+}): Promise<{ ok: true }> {
+  const result = await requestPasswordReset(input);
+  if (result.sent) {
+    const { data: member } = await supabase
+      .from('members')
+      .select('name, gyms!inner(name)')
+      .eq('id', result.memberId)
+      .maybeSingle<{ name: string; gyms: { name: string } | null }>();
+
+    const gymName = member?.gyms?.name ?? 'your gym';
+    const memberName = member?.name ?? 'there';
+    const resetUrl = `${appOrigin()}/me/reset/${result.token}`;
+    const built = buildResetEmail({ memberName, gymName, resetUrl });
+    await sendEmail({ to: input.email, ...built });
+  }
+  return { ok: true };
 }
 
 export async function logSet(input: {
@@ -75,8 +99,7 @@ export async function logSet(input: {
   distanceMeters?: number | null;
   qrSlug: string;
 }): Promise<void> {
-  const store = await cookies();
-  const memberId = store.get(COOKIE_NAME)?.value;
+  const memberId = await readMemberCookie();
   if (!memberId) throw new Error('Not identified');
 
   // Re-fetch the equipment row so we can validate the inputs against the
@@ -165,8 +188,7 @@ export async function recordScan(input: {
   equipmentId: string;
   gymId: string;
 }): Promise<void> {
-  const store = await cookies();
-  const memberId = store.get(COOKIE_NAME)?.value ?? null;
+  const memberId = await readMemberCookie();
   const hdrs = await headers();
   const ua = hdrs.get('user-agent');
 
@@ -202,6 +224,13 @@ export async function recordScan(input: {
 }
 
 export async function signOutMember(): Promise<void> {
-  const store = await cookies();
-  store.delete(COOKIE_NAME);
+  await clearMemberCookie();
+}
+
+function appOrigin(): string {
+  const env = process.env.NEXT_PUBLIC_APP_URL;
+  if (env) return env.replace(/\/$/, '');
+  const vercel = process.env.VERCEL_URL;
+  if (vercel) return `https://${vercel}`;
+  return 'http://localhost:3000';
 }
