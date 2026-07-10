@@ -82,11 +82,6 @@ export function MemberStatsClient({
     [sets, range, timezone],
   );
 
-  const hasCardio = useMemo(
-    () => sets.some((s) => s.duration_seconds != null),
-    [sets],
-  );
-
   const hero = useMemo(() => computeHero(rangedSets, sets), [rangedSets, sets]);
 
   const prior = useMemo(
@@ -169,7 +164,7 @@ export function MemberStatsClient({
         </div>
       </section>
 
-      {hasAnySets && <ActivityChart buckets={buckets} scale={scale} hasCardio={hasCardio} />}
+      {hasAnySets && <ActivityChart buckets={buckets} scale={scale} />}
 
       <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-3">
         Machines · {sublabel}
