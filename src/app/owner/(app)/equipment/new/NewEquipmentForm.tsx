@@ -18,26 +18,42 @@ export function NewEquipmentForm({
   const [machineLabel, setMachineLabel] = useState('');
   const [equipmentType, setEquipmentType] = useState<EquipmentType>('strength_single');
   const [exercises, setExercises] = useState<string[]>([]);
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(requestId);
   const [pending, startTransition] = useTransition();
+  const [nextAction, setNextAction] = useState<'print' | 'add-another'>('print');
   const [err, setErr] = useState<string | null>(null);
 
-  function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function submit(action: 'print' | 'add-another') {
     setErr(null);
     if (equipmentType === 'strength_multi' && exercises.length === 0) {
       return setErr('Add at least one exercise for a multi-exercise machine.');
     }
+    setNextAction(action);
     startTransition(async () => {
       const res = await createEquipment({
         name,
         machineLabel,
         equipmentType,
         exercises,
-        requestId,
+        requestId: activeRequestId,
       });
       if (!res.ok) return setErr(res.error);
+      if (action === 'add-another') {
+        setName('');
+        setMachineLabel('');
+        setEquipmentType('strength_single');
+        setExercises([]);
+        setActiveRequestId(null);
+        router.refresh();
+        return;
+      }
       router.push(`/owner/equipment/${res.id}/qr`);
     });
+  }
+
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    submit('print');
   }
 
   return (
@@ -97,13 +113,23 @@ export function NewEquipmentForm({
         </div>
       )}
 
-      <button
-        type="submit"
-        disabled={pending || !name.trim()}
-        className="w-full px-4 py-4 text-lg font-semibold rounded-lg bg-white text-black disabled:opacity-50"
-      >
-        {pending ? 'Saving…' : 'Save & Print QR'}
-      </button>
+      <div className="space-y-2">
+        <button
+          type="submit"
+          disabled={pending || !name.trim()}
+          className="w-full px-4 py-4 text-lg font-semibold rounded-lg bg-white text-black disabled:opacity-50"
+        >
+          {pending && nextAction === 'print' ? 'Saving…' : 'Save & Print QR'}
+        </button>
+        <button
+          type="button"
+          onClick={() => submit('add-another')}
+          disabled={pending || !name.trim()}
+          className="w-full px-4 py-4 text-lg font-semibold rounded-lg border border-neutral-700 bg-neutral-900 text-white hover:border-neutral-500 disabled:opacity-50"
+        >
+          {pending && nextAction === 'add-another' ? 'Saving…' : 'Save & Add Another'}
+        </button>
+      </div>
       {err && <p className="text-sm text-red-400">{err}</p>}
     </form>
   );
