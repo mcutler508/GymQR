@@ -69,7 +69,7 @@ export default async function OwnerDashboard() {
   return (
     <div className="space-y-16">
       <EditorialHeader
-        kicker={`Vol. I  ·  ${gym.slug}`}
+        kicker={gym.slug}
         title={gym.name}
         subtitle="Every scan, every set, every member — gathered quietly into one room."
         meta={dateStamp}
