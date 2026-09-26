@@ -17,6 +17,9 @@ type Props = {
   footerHref: string;
   /** Footer link label. */
   footerLabel: string;
+  /** Form-panel eyebrow + heading; default to the sign-in / sign-up copy. */
+  formKicker?: string;
+  formTitle?: string;
 };
 
 /**
@@ -32,7 +35,10 @@ export function AuthShell({
   footerPrompt,
   footerHref,
   footerLabel,
+  formKicker,
+  formTitle,
 }: Props) {
+  const isSignIn = kicker === 'Welcome back';
   return (
     <main className="relative min-h-screen overflow-hidden bg-black text-white">
       {/* Soft light source — single radial gloss, pure white, very low opacity. */}
@@ -101,10 +107,10 @@ export function AuthShell({
         <section className="flex items-center justify-center px-6 py-16 sm:px-12">
           <div className="w-full max-w-sm">
             <div className="font-mono text-[10px] uppercase tracking-[0.28em] text-zinc-500">
-              {kicker === 'Welcome back' ? 'Returning owner' : 'New owner'}
+              {formKicker ?? (isSignIn ? 'Returning owner' : 'New owner')}
             </div>
             <h2 className="mt-3 font-display text-2xl text-white">
-              {kicker === 'Welcome back' ? 'Sign in' : 'Open the doors'}
+              {formTitle ?? (isSignIn ? 'Sign in' : 'Open the doors')}
             </h2>
             <div className="mt-1 h-px w-12 bg-white/40" />
 

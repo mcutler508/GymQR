@@ -557,18 +557,27 @@ label:focus-visible {
   filter: brightness(0);
 }
 
-/* Print styles for the QR sticker page.
-   When printing, hide everything except the .sticker container. */
+/* Print styles for QR sticker sheets (see equipment/_sticker/StickerSheet).
+   The sheets render into a .print-root portal that's a direct child of
+   <body>; everything else is removed from layout so it can't add blank
+   pages. Sheets are exactly US Letter, so the page margin is zero. */
+.print-root { display: none; }
+
 @media print {
-  body * { visibility: hidden; }
-  .sticker, .sticker * { visibility: visible; }
-  .sticker {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+  @page { size: letter; margin: 0; }
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
     background: #fff !important;
-    color: #000 !important;
+    min-height: 0 !important;
   }
+  body > *:not(.print-root) { display: none !important; }
+  .print-root {
+    display: block;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-sheet { break-after: page; page-break-after: always; }
+  .print-sheet:last-child { break-after: auto; page-break-after: auto; }
   .no-print { display: none !important; }
 }

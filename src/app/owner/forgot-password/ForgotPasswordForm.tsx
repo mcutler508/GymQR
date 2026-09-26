@@ -1,28 +1,35 @@
 'use client';
 
 import { useState, useTransition, type FormEvent } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { signInOwner } from '../actions';
+import { requestOwnerPasswordReset } from '../actions';
 import { Field } from '../_components/field';
 import { SubmitButton } from '../_components/submit-button';
 
-export function SignInForm() {
-  const router = useRouter();
+export function ForgotPasswordForm({ expired }: { expired: boolean }) {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [pending, startTransition] = useTransition();
-  const [err, setErr] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(
+    expired ? 'That reset link is invalid or has expired. Request a new one.' : null,
+  );
+  const [sent, setSent] = useState(false);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setErr(null);
     startTransition(async () => {
-      const res = await signInOwner({ email, password });
+      const res = await requestOwnerPasswordReset({ email });
       if (!res.ok) return setErr(res.error);
-      router.push('/owner');
-      router.refresh();
+      setSent(true);
     });
+  }
+
+  if (sent) {
+    return (
+      <p className="text-sm leading-relaxed text-zinc-300">
+        If an account exists for <span className="text-white">{email}</span>, a reset link is on
+        its way. Open it on this device — it expires in one hour.
+      </p>
+    );
   }
 
   return (
@@ -35,25 +42,10 @@ export function SignInForm() {
         autoComplete="email"
         autoFocus
       />
-      <Field
-        label="Password"
-        type="password"
-        value={password}
-        onChange={setPassword}
-        autoComplete="current-password"
-      />
-      <div className="-mt-4 text-right">
-        <Link
-          href="/owner/forgot-password"
-          className="text-xs text-zinc-500 underline-offset-4 transition-colors hover:text-white hover:underline"
-        >
-          Forgot password?
-        </Link>
-      </div>
 
       <div className="pt-2">
-        <SubmitButton pending={pending} pendingLabel="Signing in…">
-          Sign in
+        <SubmitButton pending={pending} pendingLabel="Sending…">
+          Send reset link
         </SubmitButton>
       </div>
 

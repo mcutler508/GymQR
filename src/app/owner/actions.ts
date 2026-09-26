@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { getServerClient } from '@/lib/supabase-server';
 import { generateQrSlug } from '@/lib/qr';
 import { isValidTimezone } from '@/lib/timezone';
@@ -73,6 +74,37 @@ export async function signInOwner(input: {
     password: input.password,
   });
   if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Emails a password-recovery link. The link lands on /owner/auth/confirm,
+ * which establishes a recovery session and forwards to /owner/reset-password.
+ * The redirect URL must be in Supabase → Auth → URL Configuration → Redirect
+ * URLs, or Supabase silently falls back to the Site URL (the landing page).
+ *
+ * Always reports success for unknown emails so the form can't be used to
+ * probe which addresses have accounts.
+ */
+export async function requestOwnerPasswordReset(input: {
+  email: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const email = input.email.trim().toLowerCase();
+  if (!email) return { ok: false, error: 'Email is required.' };
+
+  const h = await headers();
+  const origin =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, '') ||
+    h.get('origin') ||
+    `https://${h.get('host')}`;
+
+  const supabase = await getServerClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/owner/auth/confirm?next=/owner/reset-password`,
+  });
+  if (error?.status === 429) {
+    return { ok: false, error: 'Too many requests. Wait a minute and try again.' };
+  }
   return { ok: true };
 }
 

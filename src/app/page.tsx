@@ -11,10 +11,12 @@ import { ComparisonTable } from './(marketing)/_components/comparison-table';
 import { Faq } from './(marketing)/_components/faq';
 import { FinalCta } from './(marketing)/_components/final-cta';
 import { Footer } from './(marketing)/_components/footer';
+import { AuthLinkCatcher } from './(marketing)/_components/auth-link-catcher';
 
 export default function Home() {
   return (
     <main className="relative min-h-screen overflow-hidden">
+      <AuthLinkCatcher />
       <Aurora />
       <MemberHint />
       <TopBar />
