@@ -15,50 +15,59 @@ import {
   readMemberCookie,
 } from '@/lib/member-cookie';
 import { sendEmail, buildResetEmail } from '@/lib/email';
+import { toResult, type ActionResult } from '@/lib/action-result';
 
 export async function createMemberAction(input: {
   gymId: string;
   name: string;
   email: string;
   passcode: string;
-}): Promise<{ id: string; name: string }> {
-  const m = await createMember(input);
-  await setMemberCookie(m.id);
-  return { id: m.id, name: m.name };
+}): Promise<ActionResult<{ id: string; name: string }>> {
+  return toResult(async () => {
+    const m = await createMember(input);
+    await setMemberCookie(m.id);
+    return { id: m.id, name: m.name };
+  });
 }
 
 export async function signInMemberAction(input: {
   gymId: string;
   name: string;
   passcode: string;
-}): Promise<{ id: string; name: string; needsPasscode?: boolean }> {
-  try {
-    const m = await signInMember(input);
-    await setMemberCookie(m.id);
-    return { id: m.id, name: m.name };
-  } catch (e) {
-    // Migrated v1 user with no passcode yet — find them, set the cookie, ask
-    // them to set a passcode on the next screen.
-    if (e instanceof Error && e.message === 'PASSCODE_NOT_SET') {
-      const { data } = await supabase
-        .from('members')
-        .select('id, name')
-        .eq('gym_id', input.gymId)
-        .ilike('name', input.name.trim().replace(/([\\%_])/g, '\\$1'))
-        .maybeSingle();
-      if (data) {
-        await setMemberCookie(data.id);
-        return { id: data.id, name: data.name, needsPasscode: true };
+}): Promise<ActionResult<{ id: string; name: string; needsPasscode?: boolean }>> {
+  return toResult(async () => {
+    try {
+      const m = await signInMember(input);
+      await setMemberCookie(m.id);
+      return { id: m.id, name: m.name };
+    } catch (e) {
+      // Migrated v1 user with no passcode yet — find them, set the cookie, ask
+      // them to set a passcode on the next screen.
+      if (e instanceof Error && e.message === 'PASSCODE_NOT_SET') {
+        const { data } = await supabase
+          .from('members')
+          .select('id, name')
+          .eq('gym_id', input.gymId)
+          .ilike('name', input.name.trim().replace(/([\\%_])/g, '\\$1'))
+          .maybeSingle();
+        if (data) {
+          await setMemberCookie(data.id);
+          return { id: data.id, name: data.name, needsPasscode: true };
+        }
       }
+      throw e;
     }
-    throw e;
-  }
+  });
 }
 
-export async function setPasscodeAction(input: { passcode: string }): Promise<void> {
-  const memberId = await readMemberCookie();
-  if (!memberId) throw new Error('Not signed in');
-  await setPasscode({ memberId, passcode: input.passcode });
+export async function setPasscodeAction(input: {
+  passcode: string;
+}): Promise<ActionResult<void>> {
+  return toResult(async () => {
+    const memberId = await readMemberCookie();
+    if (!memberId) throw new Error('Not signed in');
+    await setPasscode({ memberId, passcode: input.passcode });
+  });
 }
 
 /**
@@ -69,25 +78,30 @@ export async function setPasscodeAction(input: { passcode: string }): Promise<vo
 export async function requestResetAction(input: {
   gymId: string;
   email: string;
-}): Promise<{ ok: true }> {
-  const result = await requestPasswordReset(input);
-  if (result.sent) {
-    const { data: member } = await supabase
-      .from('members')
-      .select('name, gyms!inner(name)')
-      .eq('id', result.memberId)
-      .maybeSingle<{ name: string; gyms: { name: string } | null }>();
+}): Promise<ActionResult<void>> {
+  return toResult(async () => {
+    const result = await requestPasswordReset(input);
+    if (result.sent) {
+      const { data: member } = await supabase
+        .from('members')
+        .select('name, gyms!inner(name)')
+        .eq('id', result.memberId)
+        .maybeSingle<{ name: string; gyms: { name: string } | null }>();
 
-    const gymName = member?.gyms?.name ?? 'your gym';
-    const memberName = member?.name ?? 'there';
-    const resetUrl = `${appOrigin()}/me/reset/${result.token}`;
-    const built = buildResetEmail({ memberName, gymName, resetUrl });
-    await sendEmail({ to: input.email, ...built });
-  }
-  return { ok: true };
+      const gymName = member?.gyms?.name ?? 'your gym';
+      const memberName = member?.name ?? 'there';
+      const resetUrl = `${appOrigin()}/me/reset/${result.token}`;
+      const built = buildResetEmail({ memberName, gymName, resetUrl });
+      await sendEmail({ to: input.email, ...built });
+    }
+  });
 }
 
-export async function logSet(input: {
+export async function logSet(input: LogSetInput): Promise<ActionResult<LoggedSet>> {
+  return toResult(() => logSetInner(input));
+}
+
+type LogSetInput = {
   equipmentId: string;
   gymId: string;
   weight?: number | null;
@@ -98,22 +112,31 @@ export async function logSet(input: {
   durationSeconds?: number | null;
   distanceMeters?: number | null;
   qrSlug: string;
-}): Promise<LoggedSet> {
+};
+
+async function logSetInner(input: LogSetInput): Promise<LoggedSet> {
   const memberId = await readMemberCookie();
   if (!memberId) throw new Error('Not identified');
 
   // Re-fetch the equipment row so we can validate the inputs against the
   // server-side type. Don't trust whatever the client posted.
-  const { data: eq } = await supabase
-    .from('equipment')
-    .select('id, equipment_type, exercises')
-    .eq('id', input.equipmentId)
-    .maybeSingle<{
-      id: string;
-      equipment_type: 'strength_single' | 'strength_multi' | 'cardio';
-      exercises: string[];
-    }>();
+  const [{ data: eq }, { data: member }] = await Promise.all([
+    supabase
+      .from('equipment')
+      .select('id, gym_id, equipment_type, exercises')
+      .eq('id', input.equipmentId)
+      .maybeSingle<{
+        id: string;
+        gym_id: string;
+        equipment_type: 'strength_single' | 'strength_multi' | 'cardio';
+        exercises: string[];
+      }>(),
+    supabase.from('members').select('gym_id').eq('id', memberId).maybeSingle<{ gym_id: string }>(),
+  ]);
   if (!eq) throw new Error('Equipment not found');
+  if (!member || member.gym_id !== eq.gym_id) {
+    throw new Error('You’re signed in at a different gym. Sign in here to log this machine.');
+  }
 
   if (eq.equipment_type === 'cardio') {
     const dur = Number(input.durationSeconds);
@@ -130,7 +153,7 @@ export async function logSet(input: {
       .insert({
         member_id: memberId,
         equipment_id: input.equipmentId,
-        gym_id: input.gymId,
+        gym_id: eq.gym_id,
         weight: null,
         reps: null,
         rpe: null,
@@ -179,7 +202,7 @@ export async function logSet(input: {
     .insert({
       member_id: memberId,
       equipment_id: input.equipmentId,
-      gym_id: input.gymId,
+      gym_id: eq.gym_id,
       weight: w,
       reps: r,
       rpe: input.rpe ?? null,
@@ -227,16 +250,21 @@ async function beatsPriorBest(input: {
  * Undo / delete for the member's own set. Scoped by member_id so a forged id
  * can't touch anyone else's history.
  */
-export async function deleteSet(input: { setId: string; qrSlug: string }): Promise<void> {
-  const memberId = await readMemberCookie();
-  if (!memberId) throw new Error('Not identified');
-  const { error } = await supabase
-    .from('sets')
-    .delete()
-    .eq('id', input.setId)
-    .eq('member_id', memberId);
-  if (error) throw new Error(error.message);
-  revalidatePath(`/scan/${input.qrSlug}`);
+export async function deleteSet(input: {
+  setId: string;
+  qrSlug: string;
+}): Promise<ActionResult<void>> {
+  return toResult(async () => {
+    const memberId = await readMemberCookie();
+    if (!memberId) throw new Error('Not identified');
+    const { error } = await supabase
+      .from('sets')
+      .delete()
+      .eq('id', input.setId)
+      .eq('member_id', memberId);
+    if (error) throw new Error(error.message);
+    revalidatePath(`/scan/${input.qrSlug}`);
+  });
 }
 
 // A "scan" should mean a real arrival at the machine — one row per engagement,

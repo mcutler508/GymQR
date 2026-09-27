@@ -3,6 +3,7 @@
 import { useState, useTransition, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { resetPasscodeAction } from './actions';
+import { unwrap } from '@/lib/action-result';
 
 export function ResetForm({ token }: { token: string }) {
   const router = useRouter();
@@ -18,7 +19,7 @@ export function ResetForm({ token }: { token: string }) {
     if (passcode !== confirm) return setErr('Passcodes don’t match.');
     startTransition(async () => {
       try {
-        await resetPasscodeAction({ token, passcode });
+        unwrap(await resetPasscodeAction({ token, passcode }));
         router.push('/scan');
         router.refresh();
       } catch (e) {

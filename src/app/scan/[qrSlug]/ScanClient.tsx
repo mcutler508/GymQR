@@ -26,6 +26,7 @@ import {
 import { groupIntoSessions } from '@/lib/stats';
 import { formatLocal } from '@/lib/timezone';
 import { fmtWeight } from '@/lib/format';
+import { unwrap, type ActionResult } from '@/lib/action-result';
 import {
   createMemberAction,
   signInMemberAction,
@@ -194,12 +195,12 @@ function CreateForm({ equipment }: { equipment: Equipment }) {
     if (!/^\d{4}$/.test(passcode)) return setErr('Passcode must be exactly 4 digits.');
     startTransition(async () => {
       try {
-        const m = await createMemberAction({
+        const m = unwrap(await createMemberAction({
           gymId: equipment.gym_id,
           name,
           email,
           passcode,
-        });
+        }));
         rememberName(m.name);
         router.refresh();
       } catch (e) {
@@ -271,11 +272,11 @@ function SignInForm({
     if (!/^\d{4}$/.test(passcode)) return setErr('Passcode must be exactly 4 digits.');
     startTransition(async () => {
       try {
-        const m = await signInMemberAction({
+        const m = unwrap(await signInMemberAction({
           gymId: equipment.gym_id,
           name,
           passcode,
-        });
+        }));
         rememberName(m.name);
         router.refresh();
       } catch (e) {
@@ -329,7 +330,7 @@ function ForgotPasscodeForm({
     if (!EMAIL_RE.test(email.trim())) return setErr('Enter a valid email address.');
     startTransition(async () => {
       try {
-        await requestResetAction({ gymId: equipment.gym_id, email });
+        unwrap(await requestResetAction({ gymId: equipment.gym_id, email }));
         setSent(true);
       } catch (e) {
         setErr(e instanceof Error ? e.message : 'Could not send reset email.');
@@ -402,7 +403,7 @@ function SetPasscodePrompt({
     if (!/^\d{4}$/.test(passcode)) return setErr('Passcode must be exactly 4 digits.');
     startTransition(async () => {
       try {
-        await setPasscodeAction({ passcode });
+        unwrap(await setPasscodeAction({ passcode }));
         router.refresh();
       } catch (e) {
         setErr(e instanceof Error ? e.message : 'Could not save passcode.');
@@ -792,11 +793,11 @@ function useLogLoop(qrSlug: string, { rest }: { rest: boolean }) {
     return () => clearTimeout(t);
   }, [toast]);
 
-  function save(label: string, run: () => Promise<LoggedSet>) {
+  function save(label: string, run: () => Promise<ActionResult<LoggedSet>>) {
     setErr(null);
     startTransition(async () => {
       try {
-        const res = await run();
+        const res = unwrap(await run());
         haptic(res.isPr ? [12, 60, 12] : 10);
         setToast({ id: res.id, label, isPr: res.isPr });
         setFreshId(res.id);
@@ -812,7 +813,7 @@ function useLogLoop(qrSlug: string, { rest }: { rest: boolean }) {
     setErr(null);
     startTransition(async () => {
       try {
-        await deleteSet({ setId, qrSlug });
+        unwrap(await deleteSet({ setId, qrSlug }));
         setToast((t) => (t?.id === setId ? null : t));
         router.refresh();
       } catch (e) {

@@ -102,17 +102,18 @@ export default async function ScanPage({
         .limit(40),
       supabase
         .from('members')
-        .select('name, passcode_hash')
+        .select('name, passcode_hash, gym_id')
         .eq('id', memberId)
         .maybeSingle(),
     ]);
 
-    recentSets = (setsRes.data ?? []) as Set[];
-    if (memberRes.data) {
+    // Members are per-gym and the cookie holds one identity. A member of a
+    // different gym scanning this sticker must sign in (or join) here rather
+    // than log sets against another gym's account.
+    if (memberRes.data && memberRes.data.gym_id === equipment.gym_id) {
+      recentSets = (setsRes.data ?? []) as Set[];
       memberName = memberRes.data.name;
       needsPasscode = !memberRes.data.passcode_hash;
-    } else {
-      memberName = null;
     }
   }
 
