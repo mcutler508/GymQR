@@ -8,7 +8,7 @@ export function Sparkline({ points, width = 120, height = 40 }: { points: number
     return (
       <div
         style={{ width, height }}
-        className="flex items-center justify-end text-[10px] text-muted tabular-nums"
+        className="flex items-center justify-end text-xs text-muted tabular-nums"
       >
         {points.length === 1 ? `${points[0]}` : '—'}
       </div>

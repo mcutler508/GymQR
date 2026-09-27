@@ -248,3 +248,48 @@ export function groupIntoSessions<T extends { logged_at: string }>(
   }
   return sessions;
 }
+
+export type PrEvent = {
+  weight: number;
+  reps: number;
+  logged_at: string;
+  equipment_id: string;
+  exercise_name: string | null;
+} | null;
+
+/**
+ * Most recent set that beat the member's previous best on the same machine
+ * (and exercise, for multi-station equipment). The first set ever logged on a
+ * machine isn't a PR — there was nothing to beat. Cross-machine "heaviest
+ * lift" is meaningless (leg press always wins), so PRs stay per-machine.
+ */
+export function latestPrEvent(
+  sets: Pick<Set, 'weight' | 'reps' | 'logged_at' | 'equipment_id' | 'exercise_name'>[],
+): PrEvent {
+  const sorted = sets
+    .filter((s) => s.weight != null && s.reps != null)
+    .sort((a, b) => a.logged_at.localeCompare(b.logged_at));
+  const best = new Map<string, { weight: number; reps: number }>();
+  let latest: PrEvent = null;
+  for (const s of sorted) {
+    const key = `${s.equipment_id}::${s.exercise_name ?? ''}`;
+    const w = Number(s.weight);
+    const r = Number(s.reps);
+    const prev = best.get(key);
+    if (!prev) {
+      best.set(key, { weight: w, reps: r });
+      continue;
+    }
+    if (w > prev.weight || (w === prev.weight && r > prev.reps)) {
+      best.set(key, { weight: w, reps: r });
+      latest = {
+        weight: w,
+        reps: r,
+        logged_at: s.logged_at,
+        equipment_id: s.equipment_id,
+        exercise_name: s.exercise_name,
+      };
+    }
+  }
+  return latest;
+}

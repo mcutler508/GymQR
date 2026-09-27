@@ -55,7 +55,8 @@ Migrations applied to Supabase: `0001_init.sql`, `0002_v2_schema.sql`, `0003_own
 - `src/lib/auth-member.ts` — `createMember`, `signInMember`, `setPasscode` (bcryptjs, 10 rounds).
 - `src/lib/qr.ts` — slug normalization with random suffix.
 - `src/lib/stats.ts` — pure stat helpers (`lifetimeTotals`, `weeklyStreak`, `prFor`, `progressionFor`).
-- `src/lib/suggested-target.ts` — +5 lbs at 8 reps / +1 rep otherwise.
+- `src/lib/suggested-target.ts` — +5 lbs at 8 reps / +1 rep otherwise, driven by the top set of *prior* sessions (frozen for today's session). Same top set 3 sessions running → ~10% deload.
+- `src/lib/format.ts` — shared `fmtWeight` / `fmtVol`.
 
 ### Demo dependencies you must set in Supabase
 
@@ -110,6 +111,7 @@ This is the product. Everything else supports it.
 - If last set reps ≥ 8 → suggest +5 lbs at 8 reps.
 - If last set reps < 8 → suggest same weight, +1 rep.
 - If no history → "Start with a comfortable weight."
+- If the identical top set repeats 3 sessions → drop ~10% (rounded to 5), same reps.
 
 Do not overbuild this into ML/coaching in V1.
 

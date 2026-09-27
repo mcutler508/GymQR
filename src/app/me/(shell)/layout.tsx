@@ -12,12 +12,11 @@ const COOKIE_NAME = 'reptag_member_id';
 
 /**
  * Authenticated shell for the member persona — dashboard, stats overview,
- * history, profile. Owns: cookie gate, theme application, sticky brand header,
- * fixed bottom tab nav, bottom safe-area padding.
+ * history, profile, per-machine stats. Owns: cookie gate, theme application,
+ * sticky brand header, fixed bottom tab nav, bottom safe-area padding.
  *
- * Out-of-shell pages (kept standalone on purpose): `/me/stats/[equipmentId]`
- * (deep machine view with its own polished chrome), `/scan/[qrSlug]` (the
- * scan-log loop, kept distraction-free).
+ * Out-of-shell on purpose: `/scan/[qrSlug]` (the scan-log loop, kept
+ * distraction-free).
  */
 export default async function MemberShellLayout({
   children,

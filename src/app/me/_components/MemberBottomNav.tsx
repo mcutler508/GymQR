@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const TABS = [
+  { href: '/me', label: 'Home', match: (p: string) => p === '/me', icon: 'home' as const },
   { href: '/scan', label: 'Scan', match: (p: string) => p === '/scan', icon: 'scan' as const },
   { href: '/me/stats', label: 'Stats', match: (p: string) => p === '/me/stats' || p.startsWith('/me/stats/'), icon: 'stats' as const },
   { href: '/me/history', label: 'History', match: (p: string) => p.startsWith('/me/history'), icon: 'history' as const },
@@ -12,7 +13,7 @@ const TABS = [
 
 /**
  * Mobile bottom nav for the member persona. Fixed at the bottom across the
- * shell pages AND the camera page (`/scan`) — so the four-tab map stays visible
+ * shell pages AND the camera page (`/scan`) — so the five-tab map stays visible
  * everywhere a member normally lives. Deep scan-log flow (`/scan/[qrSlug]`)
  * intentionally does NOT render this, so the log loop stays distraction-free.
  */
@@ -33,12 +34,12 @@ export function MemberBottomNav() {
                 href={tab.href}
                 aria-current={active ? 'page' : undefined}
                 className={[
-                  'flex flex-col items-center justify-center gap-1 py-2.5 transition-colors',
+                  'flex min-h-14 flex-col items-center justify-center gap-1 py-2 transition-colors',
                   active ? 'text-accent' : 'text-muted hover:text-ink',
                 ].join(' ')}
               >
                 <NavIcon name={tab.icon} />
-                <span className="text-[10px] font-mono uppercase tracking-[0.2em]">{tab.label}</span>
+                <span className="text-[11px] font-mono uppercase tracking-[0.12em]">{tab.label}</span>
               </Link>
             </li>
           );
@@ -48,7 +49,7 @@ export function MemberBottomNav() {
   );
 }
 
-function NavIcon({ name }: { name: 'scan' | 'stats' | 'history' | 'profile' }) {
+function NavIcon({ name }: { name: 'home' | 'scan' | 'stats' | 'history' | 'profile' }) {
   const common = {
     width: 22,
     height: 22,
@@ -60,6 +61,13 @@ function NavIcon({ name }: { name: 'scan' | 'stats' | 'history' | 'profile' }) {
     strokeLinejoin: 'round' as const,
     'aria-hidden': true,
   };
+  if (name === 'home') {
+    return (
+      <svg {...common}>
+        <path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />
+      </svg>
+    );
+  }
   if (name === 'scan') {
     return (
       <svg {...common}>

@@ -90,7 +90,7 @@ export function ActivityChart({ buckets, scale }: Props) {
         <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">
           Activity · last {data.length} {data.length === 1 ? scaleWord : `${scaleWord}s`}
         </p>
-        <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
+        <p className="text-xs text-muted-strong">
           <span className="font-display normal-case tracking-normal text-ink text-xl mr-1.5 tabular-nums">
             {metric.format(latestValue)}
           </span>

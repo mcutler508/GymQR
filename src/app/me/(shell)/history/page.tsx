@@ -7,6 +7,7 @@ import { formatLocal } from '@/lib/timezone';
 import type { GymTheme } from '@/app/scan/[qrSlug]/page';
 import type { EquipmentType } from '@/lib/supabase';
 import { EmptyState } from '@/app/me/stats/_components/EmptyState';
+import { fmtWeight } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -138,7 +139,7 @@ function SessionRow({
         <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium">
           {dayLabel} · {timeLabel}
         </p>
-        <p className="text-[10px] font-mono uppercase tracking-[0.15em] text-muted tabular-nums">
+        <p className="text-xs text-muted-strong tabular-nums">
           {sets.length} {sets.length === 1 ? 'set' : 'sets'} · {groups.length} {groups.length === 1 ? 'machine' : 'machines'} · {durationMin}m
         </p>
       </div>
@@ -147,11 +148,11 @@ function SessionRow({
           <li key={g.equipmentId} className="flex items-start justify-between gap-4">
             <Link
               href={`/me/stats/${g.equipmentId}`}
-              className="font-medium text-ink shrink-0 hover:underline"
+              className="min-w-0 truncate font-medium text-ink hover:underline"
             >
               {g.name}
             </Link>
-            <p className="text-sm text-muted-strong tabular-nums text-right">
+            <p className="shrink-0 text-sm text-muted-strong tabular-nums text-right">
               {summarizeGroup(g)}
             </p>
           </li>
@@ -182,8 +183,4 @@ function summarizeGroup(group: { sets: HistorySet[]; type: EquipmentType }): str
     .map((s) => `${fmtWeight(Number(s.weight))}×${s.reps}`);
   const extra = Math.max(0, group.sets.length - labels.length);
   return labels.join(', ') + (extra > 0 ? ` +${extra}` : '');
-}
-
-function fmtWeight(w: number): string {
-  return Number.isInteger(w) ? String(w) : w.toFixed(1);
 }

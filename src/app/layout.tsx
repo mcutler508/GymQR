@@ -5,12 +5,13 @@ import { allFontVariables, inter } from '@/lib/fonts';
 export const metadata: Metadata = {
   title: 'RepetoIQ — Your gym remembers your lifts',
   description: 'Scan equipment, see your last lift, log a new set.',
+  appleWebApp: { capable: true, title: 'RepetoIQ', statusBarStyle: 'black' },
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
+  viewportFit: 'cover',
   themeColor: '#0a0a0a',
 };
 

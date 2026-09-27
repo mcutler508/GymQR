@@ -5,6 +5,7 @@ import { Sparkline } from './Sparkline';
 import { formatDuration, formatMiles, type CardioBest } from '@/lib/cardio';
 import type { ProgressionPoint, PR } from '@/lib/stats';
 import type { EquipmentType } from '@/lib/supabase';
+import { fmtWeight } from '@/lib/format';
 
 export type ExerciseStat = {
   name: string | null;
@@ -57,7 +58,7 @@ function SingleRow({ machine }: { machine: MachineStat }) {
     >
       <div className="min-w-0 flex-1">
         <p className="font-medium text-ink truncate">{machine.name}</p>
-        <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
+        <p className="mt-1 text-xs text-muted-strong">
           {[machine.label, `${machine.setCount} ${machine.setCount === 1 ? 'set' : 'sets'}`]
             .filter(Boolean)
             .join(' · ')}
@@ -72,7 +73,7 @@ function SingleRow({ machine }: { machine: MachineStat }) {
               <span className="text-muted-strong"> × </span>
               {machine.pr.reps}
             </p>
-            <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
+            <p className="mt-1 text-xs text-muted-strong">
               PR
               {machine.prInRange && (
                 <span
@@ -98,7 +99,7 @@ function CardioRow({ machine }: { machine: MachineStat }) {
     >
       <div className="min-w-0 flex-1">
         <p className="font-medium text-ink truncate">{machine.name}</p>
-        <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
+        <p className="mt-1 text-xs text-muted-strong">
           Cardio
           {machine.label && ` · ${machine.label}`}
           {' · '}
@@ -110,7 +111,7 @@ function CardioRow({ machine }: { machine: MachineStat }) {
           <p className="font-display text-lg text-ink tabular-nums leading-none">
             {formatDuration(c.longestDurationSeconds)}
           </p>
-          <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
+          <p className="mt-1 text-xs text-muted-strong">
             {c.longestDistanceMeters > 0
               ? `Longest · ${formatMiles(c.longestDistanceMeters)} mi`
               : 'Longest'}
@@ -124,13 +125,21 @@ function CardioRow({ machine }: { machine: MachineStat }) {
 function MultiRow({ machine }: { machine: MachineStat }) {
   return (
     <div className="py-4">
-      <p className="font-medium text-ink">{machine.name}</p>
-      <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
-        Multi
-        {machine.label && ` · ${machine.label}`}
-        {' · '}
-        {machine.setCount} sets across {machine.exercises.length} exercises
-      </p>
+      <Link
+        href={`/me/stats/${machine.id}`}
+        className="flex items-center justify-between gap-4 -mx-2 px-2 py-1 rounded-sm transition-colors hover:bg-surface-2"
+      >
+        <div className="min-w-0">
+          <p className="font-medium text-ink truncate">{machine.name}</p>
+          <p className="mt-1 text-xs text-muted-strong">
+            Multi
+            {machine.label && ` · ${machine.label}`}
+            {' · '}
+            {machine.setCount} sets across {machine.exercises.length} exercises
+          </p>
+        </div>
+        <span aria-hidden className="text-muted-strong">›</span>
+      </Link>
 
       <ul className="mt-3 divide-y divide-line-soft border-t border-line-soft">
         {machine.exercises.map((ex) => {
@@ -147,7 +156,7 @@ function MultiRow({ machine }: { machine: MachineStat }) {
                   <p className="text-sm font-medium text-ink truncate">
                     {ex.name ?? '(unlabeled)'}
                   </p>
-                  <p className="mt-0.5 text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
+                  <p className="mt-0.5 text-xs text-muted-strong">
                     {ex.setCount} {ex.setCount === 1 ? 'set' : 'sets'}
                   </p>
                 </div>
@@ -158,7 +167,7 @@ function MultiRow({ machine }: { machine: MachineStat }) {
                     {ex.pr.reps}
                   </p>
                 ) : (
-                  <span className="text-[10px] font-mono uppercase tracking-[0.15em] text-muted">no PR yet</span>
+                  <span className="text-xs text-muted-strong">no PR yet</span>
                 )}
               </Link>
             </li>
@@ -167,8 +176,4 @@ function MultiRow({ machine }: { machine: MachineStat }) {
       </ul>
     </div>
   );
-}
-
-function fmtWeight(w: number): string {
-  return Number.isInteger(w) ? String(w) : w.toFixed(1);
 }

@@ -11,43 +11,34 @@ import {
   ReferenceDot,
   ResponsiveContainer,
 } from 'recharts';
-import {
-  formatDuration,
-  formatMiles,
-  type CardioProgressionPoint,
-} from '@/lib/cardio';
-import { ChartTooltip } from '../_components/ChartTooltip';
-import { EmptyState } from '../_components/EmptyState';
-import { useDismissChartOnOutside } from '../_components/useDismissChartOnOutside';
+import type { ProgressionPoint } from '@/lib/stats';
+import { ChartTooltip } from '@/app/me/stats/_components/ChartTooltip';
+import { EmptyState } from '@/app/me/stats/_components/EmptyState';
+import { useDismissChartOnOutside } from '@/app/me/stats/_components/useDismissChartOnOutside';
 
-export function CardioProgressionChart({ points }: { points: CardioProgressionPoint[] }) {
+export function ProgressionChart({ points }: { points: ProgressionPoint[] }) {
   if (points.length === 0) {
     return (
       <EmptyState
-        headline="No sessions yet"
-        sublabel="Log a session on this machine to see your duration over time."
+        headline="No working sets yet"
+        sublabel="Log a few sets on this machine to see your progression."
       />
     );
   }
 
-  // Y axis is duration in minutes for cleaner ticks than seconds.
-  const data = points.map((p) => ({
-    ts: p.ts,
-    minutes: p.durationSeconds / 60,
-    durationSeconds: p.durationSeconds,
-    distanceMeters: p.distanceMeters,
-  }));
-
-  // Longest session — annotated as the "best" marker.
-  let best = data[0];
-  for (const d of data) {
-    if (d.minutes > best.minutes) best = d;
+  // Find the lifetime PR point so we can drop a small accent marker on the
+  // chart. Heaviest weight wins, reps break ties — same rule as prFor().
+  let prPoint = points[0];
+  for (const p of points) {
+    if (p.weight > prPoint.weight || (p.weight === prPoint.weight && p.reps > prPoint.reps)) {
+      prPoint = p;
+    }
   }
 
   return (
     <ChartShell>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 32, right: 24, bottom: 8, left: 0 }}>
+        <LineChart data={points} margin={{ top: 32, right: 24, bottom: 8, left: 0 }}>
           <CartesianGrid
             stroke="rgb(var(--line))"
             strokeDasharray="2 4"
@@ -69,7 +60,6 @@ export function CardioProgressionChart({ points }: { points: CardioProgressionPo
             tickLine={false}
             axisLine={false}
             width={48}
-            tickFormatter={(v: number) => `${Math.round(v)}m`}
             domain={[0, (dataMax: number) => Math.ceil(dataMax * 1.1)]}
           />
           <Tooltip
@@ -86,17 +76,11 @@ export function CardioProgressionChart({ points }: { points: CardioProgressionPo
                       })
                     : '';
                 }}
-                formatValue={(_value, payload) => {
-                  const p = payload as
-                    | { durationSeconds: number; distanceMeters: number }
-                    | undefined;
-                  if (!p) return { primary: '' };
-                  const dur = formatDuration(p.durationSeconds);
+                formatValue={(value, payload) => {
+                  const reps = (payload as ProgressionPoint | undefined)?.reps;
                   return {
-                    primary: p.distanceMeters > 0
-                      ? `${dur} · ${formatMiles(p.distanceMeters)} mi`
-                      : dur,
-                    secondary: 'Session',
+                    primary: `${value} × ${reps ?? '?'}`,
+                    secondary: 'Working set',
                   };
                 }}
               />
@@ -104,22 +88,22 @@ export function CardioProgressionChart({ points }: { points: CardioProgressionPo
           />
           <Line
             type="monotone"
-            dataKey="minutes"
+            dataKey="weight"
             stroke="rgb(var(--accent))"
             strokeWidth={2}
             dot={{ fill: 'rgb(var(--accent))', stroke: 'rgb(var(--accent))', r: 3 }}
             activeDot={{ r: 5, fill: 'rgb(var(--accent))', stroke: 'rgb(var(--surface))', strokeWidth: 2 }}
           />
           <ReferenceDot
-            x={best.ts}
-            y={best.minutes}
+            x={prPoint.ts}
+            y={prPoint.weight}
             r={6}
             fill="rgb(var(--accent))"
             stroke="rgb(var(--surface))"
             strokeWidth={2}
             ifOverflow="visible"
             label={{
-              value: 'BEST',
+              value: 'PR',
               position: 'top',
               offset: 8,
               fill: 'rgb(var(--accent))',

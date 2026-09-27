@@ -48,7 +48,7 @@ export default async function MemberProfilePage() {
         <button
           type="submit"
           className={[
-            'w-full px-4 py-3.5 rounded-card border border-line text-sm font-medium text-ink',
+            'w-full min-h-12 px-4 rounded-card border border-line text-sm font-medium text-ink',
             'transition-colors hover:bg-surface-2',
             'concrete:rounded-none',
           ].join(' ')}
@@ -57,8 +57,8 @@ export default async function MemberProfilePage() {
         </button>
       </form>
 
-      <p className="mt-4 text-center text-[10px] font-mono uppercase tracking-[0.2em] text-muted">
-        Signing out clears this device · your sets stay safe on the gym roster
+      <p className="mt-4 text-center text-xs text-muted-strong">
+        Signing out clears this device. Your sets stay safe with your gym.
       </p>
 
       <p className="mt-14 text-center text-[10px] font-mono uppercase tracking-[0.28em] text-muted">

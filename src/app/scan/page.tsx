@@ -36,7 +36,7 @@ export default async function ScanRootPage() {
         identified ? 'pb-24' : '',
       ].join(' ')}
     >
-      <Scanner />
+      <Scanner identified={identified} />
       {identified && <MemberBottomNav />}
     </div>
   );

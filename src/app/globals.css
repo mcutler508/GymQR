@@ -19,11 +19,13 @@
   --line: 31 31 31;
   --line-soft: 22 22 22;
   --ink: 237 237 237;
-  --muted: 115 115 115;
-  --muted-strong: 163 163 163;
+  --muted: 140 140 140;
+  --muted-strong: 175 175 175;
   --accent: 245 213 71;
   --accent-ink: 10 10 10;
   --accent-soft: 245 213 71;
+  --danger: 248 113 113;
+  --success: 52 211 153;
 
   --radius-sm: 4px;
   --radius: 8px;
@@ -46,6 +48,8 @@
   --accent: 249 115 22;
   --accent-ink: 24 24 27;
   --accent-soft: 251 146 60;
+  --danger: 248 113 113;
+  --success: 52 211 153;
 
   --radius-sm: 0px;
   --radius: 0px;
@@ -72,6 +76,8 @@
   --accent: 5 150 105;
   --accent-ink: 255 255 255;
   --accent-soft: 209 250 229;
+  --danger: 185 28 28;
+  --success: 4 120 87;
 
   --radius-sm: 10px;
   --radius: 14px;
@@ -89,11 +95,13 @@
   --line: 31 31 31;
   --line-soft: 26 26 26;
   --ink: 255 255 255;
-  --muted: 113 113 122;
-  --muted-strong: 163 163 163;
+  --muted: 140 140 148;
+  --muted-strong: 175 175 175;
   --accent: 217 249 157;
   --accent-ink: 0 0 0;
   --accent-soft: 217 249 157;
+  --danger: 248 113 113;
+  --success: 52 211 153;
 
   --radius-sm: 8px;
   --radius: 10px;
@@ -152,6 +160,30 @@ label:focus-visible {
 .recharts-surface :focus,
 .recharts-surface :focus-visible {
   outline: none !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Member motion — scan/log loop                                       */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes set-in {
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes scan-line {
+    0%   { top: 0; opacity: 0; }
+    10%  { opacity: 1; }
+    90%  { opacity: 1; }
+    100% { top: calc(100% - 2px); opacity: 0; }
+  }
+  .animate-set-in { animation: set-in 280ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+  .animate-toast-in { animation: toast-in 200ms ease-out both; }
+  .animate-scan-line { animation: scan-line 2.2s ease-in-out infinite; }
 }
 
 /* ------------------------------------------------------------------ */

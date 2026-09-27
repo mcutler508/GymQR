@@ -296,6 +296,20 @@ function Sheet({
   );
 }
 
+const GYM_NAME_TRACKING = 0.14;
+
+/**
+ * Largest font size (pt, capped at 7) that keeps the full gym name on one
+ * row. Monospace glyphs are ~0.6em wide, plus letter-spacing. Available width
+ * is the sticker's inner width (3" − 2 × 0.16" padding = 193pt) minus the
+ * two divider stubs and gaps (~22pt).
+ */
+function gymNameSize(name: string): number {
+  const available = 193 - 22;
+  const perChar = 0.6 + GYM_NAME_TRACKING;
+  return Math.min(7, available / (Math.max(name.length, 1) * perChar));
+}
+
 /** One 3" × 3" sticker. */
 function Sticker({
   sticker,
@@ -306,7 +320,7 @@ function Sticker({
   branding: StickerBranding;
   qrUrl: string | undefined;
 }) {
-  const { gymName, accent, tagline, taglinePosition } = branding;
+  const { gymName, tagline, taglinePosition } = branding;
   const trimmedTagline = tagline.trim();
   const taglineEl = trimmedTagline ? (
     <p
@@ -338,20 +352,9 @@ function Sticker({
         color: '#0a0a0a',
       }}
     >
-      <p
-        style={{
-          margin: 0,
-          font: `600 6.5pt ${MONO}`,
-          letterSpacing: '0.28em',
-          textTransform: 'uppercase',
-          color: accent,
-        }}
-      >
-        Scan to track{sticker.machineLabel ? ` · № ${sticker.machineLabel}` : ''}
-      </p>
       <h2
         style={{
-          margin: '2pt 0 0',
+          margin: 0,
           font: `400 ${sticker.name.length > 22 ? 10.5 : 13}pt/1.15 ${DISPLAY}`,
           letterSpacing: '-0.01em',
           whiteSpace: 'nowrap',
@@ -385,21 +388,16 @@ function Sticker({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '6pt',
-          font: `6pt ${MONO}`,
-          letterSpacing: '0.24em',
+          gap: '5pt',
+          font: `${gymNameSize(gymName)}pt ${MONO}`,
+          letterSpacing: `${GYM_NAME_TRACKING}em`,
           textTransform: 'uppercase',
           color: '#737373',
         }}
       >
-        <span style={{ flex: 1, height: '0.5pt', background: '#d4d4d4' }} />
-        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {gymName}
-        </span>
-        <span style={{ color: '#a3a3a3', letterSpacing: '0.05em', textTransform: 'none' }}>
-          · repetoIQ
-        </span>
-        <span style={{ flex: 1, height: '0.5pt', background: '#d4d4d4' }} />
+        <span style={{ flex: 1, minWidth: '6pt', height: '0.5pt', background: '#d4d4d4' }} />
+        <span style={{ whiteSpace: 'nowrap' }}>{gymName}</span>
+        <span style={{ flex: 1, minWidth: '6pt', height: '0.5pt', background: '#d4d4d4' }} />
       </div>
       {taglinePosition === 'bottom' && taglineEl && <div style={{ marginTop: '2pt' }}>{taglineEl}</div>}
     </div>

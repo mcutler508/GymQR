@@ -11,7 +11,8 @@ import {
   saveRange,
   type RangeKey,
 } from '@/lib/member-range';
-import { prFor, progressionFor, weeklyStreak } from '@/lib/stats';
+import { latestPrEvent, prFor, progressionFor, weeklyStreak } from '@/lib/stats';
+import { fmtVol, fmtWeight } from '@/lib/format';
 import { cardioBest } from '@/lib/cardio';
 import type { EquipmentType } from '@/lib/supabase';
 import { MachineCardsView, type MachineStat, type ExerciseStat } from './MachineCardsView';
@@ -83,13 +84,18 @@ export function MemberStatsClient({
   );
 
   const hero = useMemo(() => computeHero(rangedSets, sets), [rangedSets, sets]);
+  const prMachine = hero.latestPr
+    ? [equipmentById.get(hero.latestPr.equipment_id)?.name, hero.latestPr.exercise_name]
+        .filter(Boolean)
+        .join(' · ')
+    : null;
 
   const prior = useMemo(
     () => priorRangeTotals(sets, range, timezone),
     [sets, range, timezone],
   );
 
-  const streak = useMemo(
+  const daysThisWeek = useMemo(
     () => weeklyStreak(sets, timezone),
     [sets, timezone],
   );
@@ -108,10 +114,10 @@ export function MemberStatsClient({
   const hasAnySets = sets.length > 0;
   const hasRangeSets = rangedSets.length > 0;
 
-  // Single kicker row above the name: "MEMBER · {gym} · {n} DAY STREAK".
-  // The streak only appears at 2+ days — a single workout isn't a streak.
+  // Single kicker row above the name: "MEMBER · {gym} · {n} DAYS THIS WEEK".
+  // Days trained in the last 7 — shown from 2+ so it reads as momentum.
   const kickerParts = ['Member', gymName];
-  if (streak >= 2) kickerParts.push(`${streak} day streak`);
+  if (daysThisWeek >= 2) kickerParts.push(`${daysThisWeek} days this week`);
   const kicker = kickerParts.join(' · ');
 
   return (
@@ -152,14 +158,16 @@ export function MemberStatsClient({
             delta={makeDelta(hero.workoutDays, prior?.workoutDays ?? null, (n) => `${Math.abs(n)} ${Math.abs(n) === 1 ? 'day' : 'days'}`)}
           />
           <KpiTile
-            label="Lifetime PR"
+            label="Latest PR"
             value={
-              hero.lifetimePr
-                ? `${fmtWeight(hero.lifetimePr.weight)} × ${hero.lifetimePr.reps}`
+              hero.latestPr
+                ? `${fmtWeight(hero.latestPr.weight)} × ${hero.latestPr.reps}`
                 : '—'
             }
-            sublabel={hero.lifetimePr ? 'all time' : 'no sets yet'}
-            accent={!!hero.lifetimePr}
+            sublabel={prMachine ?? (hasAnySets ? 'beat a past set to earn one' : 'no sets yet')}
+            accent={!!hero.latestPr}
+            href={hero.latestPr ? `/me/stats/${hero.latestPr.equipment_id}` : undefined}
+            hrefLabel="View"
           />
         </div>
       </section>
@@ -225,7 +233,7 @@ function computeHero(rangedSets: ClientSet[], allSets: ClientSet[]) {
     volume: Math.round(volume),
     setCount: rangedSets.length,
     workoutDays: days.size,
-    lifetimePr: prFor(allSets),
+    latestPr: latestPrEvent(allSets),
   };
 }
 
@@ -309,15 +317,4 @@ function latest(sets: ClientSet[]): string | null {
     if (!max || s.logged_at > max) max = s.logged_at;
   }
   return max;
-}
-
-function fmtVol(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 10_000) return `${(n / 1_000).toFixed(0)}k`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
-  return String(n);
-}
-
-function fmtWeight(w: number): string {
-  return Number.isInteger(w) ? String(w) : w.toFixed(1);
 }

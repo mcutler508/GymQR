@@ -47,7 +47,7 @@ export function KpiTile({ label, value, sublabel, delta, accent, href, hrefLabel
         {value}
       </p>
       {sublabel && (
-        <p className="mt-1.5 text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
+        <p className="mt-1.5 text-xs text-muted-strong">
           {sublabel}
         </p>
       )}

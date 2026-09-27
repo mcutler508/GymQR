@@ -98,7 +98,7 @@ export async function logSet(input: {
   durationSeconds?: number | null;
   distanceMeters?: number | null;
   qrSlug: string;
-}): Promise<void> {
+}): Promise<LoggedSet> {
   const memberId = await readMemberCookie();
   if (!memberId) throw new Error('Not identified');
 
@@ -125,21 +125,25 @@ export async function logSet(input: {
       distance = m;
     }
 
-    const { error } = await supabase.from('sets').insert({
-      member_id: memberId,
-      equipment_id: input.equipmentId,
-      gym_id: input.gymId,
-      weight: null,
-      reps: null,
-      rpe: null,
-      note: input.note ?? null,
-      exercise_name: null,
-      duration_seconds: Math.round(dur),
-      distance_meters: distance,
-    });
+    const { data: inserted, error } = await supabase
+      .from('sets')
+      .insert({
+        member_id: memberId,
+        equipment_id: input.equipmentId,
+        gym_id: input.gymId,
+        weight: null,
+        reps: null,
+        rpe: null,
+        note: input.note ?? null,
+        exercise_name: null,
+        duration_seconds: Math.round(dur),
+        distance_meters: distance,
+      })
+      .select('id')
+      .single();
     if (error) throw new Error(error.message);
     revalidatePath(`/scan/${input.qrSlug}`);
-    return;
+    return { id: inserted.id, isPr: false };
   }
 
   // Strength path (single or multi).
@@ -160,19 +164,78 @@ export async function logSet(input: {
   }
   // strength_single: ignore any client-sent exerciseName.
 
-  const { error } = await supabase.from('sets').insert({
-    member_id: memberId,
-    equipment_id: input.equipmentId,
-    gym_id: input.gymId,
+  // PR check runs before the insert: it's a PR when the member has history on
+  // this machine (+ exercise) and nothing prior matches or beats it.
+  const isPr = await beatsPriorBest({
+    memberId,
+    equipmentId: input.equipmentId,
+    exerciseName,
     weight: w,
     reps: r,
-    rpe: input.rpe ?? null,
-    note: input.note ?? null,
-    exercise_name: exerciseName,
   });
+
+  const { data: inserted, error } = await supabase
+    .from('sets')
+    .insert({
+      member_id: memberId,
+      equipment_id: input.equipmentId,
+      gym_id: input.gymId,
+      weight: w,
+      reps: r,
+      rpe: input.rpe ?? null,
+      note: input.note ?? null,
+      exercise_name: exerciseName,
+    })
+    .select('id')
+    .single();
 
   if (error) throw new Error(error.message);
 
+  revalidatePath(`/scan/${input.qrSlug}`);
+  return { id: inserted.id, isPr };
+}
+
+export type LoggedSet = { id: string; isPr: boolean };
+
+async function beatsPriorBest(input: {
+  memberId: string;
+  equipmentId: string;
+  exerciseName: string | null;
+  weight: number;
+  reps: number;
+}): Promise<boolean> {
+  const scoped = () => {
+    let q = supabase
+      .from('sets')
+      .select('id', { head: true, count: 'exact' })
+      .eq('member_id', input.memberId)
+      .eq('equipment_id', input.equipmentId)
+      .not('weight', 'is', null);
+    q = input.exerciseName ? q.eq('exercise_name', input.exerciseName) : q;
+    return q;
+  };
+  const [prior, matchOrBetter] = await Promise.all([
+    scoped(),
+    scoped().or(
+      `weight.gt.${input.weight},and(weight.eq.${input.weight},reps.gte.${input.reps})`,
+    ),
+  ]);
+  return (prior.count ?? 0) > 0 && (matchOrBetter.count ?? 0) === 0;
+}
+
+/**
+ * Undo / delete for the member's own set. Scoped by member_id so a forged id
+ * can't touch anyone else's history.
+ */
+export async function deleteSet(input: { setId: string; qrSlug: string }): Promise<void> {
+  const memberId = await readMemberCookie();
+  if (!memberId) throw new Error('Not identified');
+  const { error } = await supabase
+    .from('sets')
+    .delete()
+    .eq('id', input.setId)
+    .eq('member_id', memberId);
+  if (error) throw new Error(error.message);
   revalidatePath(`/scan/${input.qrSlug}`);
 }
 

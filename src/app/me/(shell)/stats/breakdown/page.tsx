@@ -133,7 +133,7 @@ export default async function BreakdownPage({
         >
           {formatTotal(grandTotal, metric)}
         </p>
-        <p className="mt-1.5 text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
+        <p className="mt-1.5 text-xs text-muted-strong">
           {isVolume ? 'lbs moved' : grandTotal === 1 ? 'set' : 'sets'} {rangeWord}
         </p>
         {priorVal !== null && priorWord && (
@@ -195,7 +195,7 @@ function BodyPartRow({
         </p>
         <p className="text-sm tabular-nums">
           <span className="font-display text-ink">{formatTotal(value, metric)}</span>
-          <span className="ml-2 text-[10px] font-mono uppercase tracking-[0.15em] text-muted">
+          <span className="ml-2 text-xs text-muted-strong">
             {percentLabel}
           </span>
         </p>

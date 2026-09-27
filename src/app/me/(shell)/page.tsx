@@ -1,8 +1,10 @@
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
-import { lifetimeTotals, prFor, weeklyStreak } from '@/lib/stats';
+import { latestPrEvent, lifetimeTotals, weeklyStreak } from '@/lib/stats';
 import { filterByRange } from '@/lib/member-range';
+import { formatLocal } from '@/lib/timezone';
+import { fmtWeight } from '@/lib/format';
 import type { GymTheme } from '@/app/scan/[qrSlug]/page';
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +17,7 @@ type DashboardSet = {
   duration_seconds: number | null;
   logged_at: string;
   equipment_id: string;
+  exercise_name: string | null;
   equipment: { name: string } | null;
 };
 
@@ -35,7 +38,7 @@ export default async function MemberDashboard() {
   const { data: setsRaw } = await supabase
     .from('sets')
     .select(
-      'weight, reps, duration_seconds, logged_at, equipment_id, equipment(name)',
+      'weight, reps, duration_seconds, logged_at, equipment_id, exercise_name, equipment(name)',
     )
     .eq('member_id', memberId)
     .order('logged_at', { ascending: false })
@@ -45,11 +48,21 @@ export default async function MemberDashboard() {
   const sets = setsRaw ?? [];
   const monthSets = filterByRange(sets, 'month', timezone);
   const monthTotals = lifetimeTotals(monthSets, timezone);
-  const pr = prFor(sets);
-  const streak = weeklyStreak(sets, timezone);
+  const daysThisWeek = weeklyStreak(sets, timezone);
+  const pr = latestPrEvent(sets);
   const lastSet = sets[0] ?? null;
 
-  const greeting = greetingFor();
+  const nameByEquipment = new Map<string, string>();
+  for (const s of sets) {
+    if (s.equipment && !nameByEquipment.has(s.equipment_id)) {
+      nameByEquipment.set(s.equipment_id, s.equipment.name);
+    }
+  }
+  const prMachine = pr
+    ? [nameByEquipment.get(pr.equipment_id) ?? 'Machine', pr.exercise_name].filter(Boolean).join(' · ')
+    : null;
+
+  const greeting = greetingFor(timezone);
   const hasAnySets = sets.length > 0;
 
   return (
@@ -81,21 +94,18 @@ export default async function MemberDashboard() {
       >
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-mono uppercase tracking-[0.25em] opacity-70 font-medium">
-              Primary action
-            </p>
             <p
               className={[
-                'mt-1.5 font-display leading-none',
-                'halogen:text-2xl halogen:font-medium',
-                'concrete:text-3xl concrete:font-black concrete:uppercase',
-                'locker:text-xl locker:font-semibold',
-                'athletic:text-2xl athletic:font-black athletic:italic athletic:uppercase',
+                'font-display leading-none',
+                'halogen:text-3xl halogen:font-medium',
+                'concrete:text-4xl concrete:font-black concrete:uppercase',
+                'locker:text-2xl locker:font-semibold',
+                'athletic:text-3xl athletic:font-black athletic:italic athletic:uppercase',
               ].join(' ')}
             >
               Scan a machine
             </p>
-            <p className="mt-2 text-sm opacity-80">Tap a sticker · log a set in seconds.</p>
+            <p className="mt-2 text-sm opacity-80">Point at a sticker · log a set in seconds.</p>
           </div>
           <ScanGlyph />
         </div>
@@ -115,9 +125,9 @@ export default async function MemberDashboard() {
                 suffix={monthTotals.workoutDays === 1 ? 'day' : 'days'}
               />
               <DashboardStat
-                label="Streak"
-                value={streak >= 1 ? String(streak) : '—'}
-                suffix={streak >= 1 ? (streak === 1 ? 'day' : 'days') : undefined}
+                label="This week"
+                value={daysThisWeek >= 1 ? String(daysThisWeek) : '—'}
+                suffix={daysThisWeek >= 1 ? `of 7 days` : undefined}
               />
             </div>
           </section>
@@ -127,36 +137,29 @@ export default async function MemberDashboard() {
               <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-3">
                 Latest
               </h2>
-              <dl className="divide-y divide-line border-t border-line">
+              <div className="divide-y divide-line border-y border-line">
                 {lastSet && (
                   <RowItem
                     term="Last machine"
+                    href={`/me/stats/${lastSet.equipment_id}`}
                     primary={lastSet.equipment?.name ?? 'Unknown machine'}
-                    secondary={relativeTime(lastSet.logged_at)}
+                    secondary={relativeTime(lastSet.logged_at, timezone)}
                   />
                 )}
                 {pr && (
                   <RowItem
-                    term="Lifetime PR"
+                    term="Latest PR"
+                    href={`/me/stats/${pr.equipment_id}`}
                     primary={`${fmtWeight(pr.weight)} × ${pr.reps}`}
-                    secondary={absoluteDate(pr.logged_at)}
+                    secondary={`${prMachine} · ${formatLocal(pr.logged_at, timezone, 'MMM d')}`}
                     accent
                   />
                 )}
-              </dl>
+              </div>
             </section>
           )}
         </>
       )}
-
-      <h2 className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted font-medium mb-3">
-        More
-      </h2>
-      <ul className="divide-y divide-line border-t border-line border-b">
-        <SecondaryLink href="/me/stats" label="View all stats" sub="Volume, sets, PRs, machine breakdowns" />
-        <SecondaryLink href="/me/history" label="Recent history" sub="Sessions grouped by workout" />
-        <SecondaryLink href="/me/profile" label="Profile" sub="Name, gym, sign out" />
-      </ul>
     </>
   );
 }
@@ -176,9 +179,7 @@ function DashboardStat({ label, value, suffix }: { label: string; value: string;
       >
         {value}
       </p>
-      {suffix && (
-        <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.15em] text-muted">{suffix}</p>
-      )}
+      {suffix && <p className="mt-1 text-xs text-muted-strong">{suffix}</p>}
     </div>
   );
 }
@@ -188,39 +189,27 @@ function RowItem({
   primary,
   secondary,
   accent,
+  href,
 }: {
   term: string;
   primary: string;
   secondary?: string;
   accent?: boolean;
+  href: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-3">
-      <dt className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted">{term}</dt>
-      <dd className="text-right">
-        <p className={`font-display text-base tabular-nums ${accent ? 'text-accent' : 'text-ink'}`}>
+    <Link
+      href={href}
+      className="flex items-center justify-between gap-4 py-3.5 -mx-2 px-2 rounded-sm transition-colors hover:bg-surface-2"
+    >
+      <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted shrink-0">{term}</span>
+      <div className="min-w-0 text-right">
+        <p className={`font-display text-lg tabular-nums ${accent ? 'text-accent' : 'text-ink'}`}>
           {primary}
         </p>
-        {secondary && <p className="mt-0.5 text-[10px] font-mono uppercase tracking-[0.15em] text-muted">{secondary}</p>}
-      </dd>
-    </div>
-  );
-}
-
-function SecondaryLink({ href, label, sub }: { href: string; label: string; sub: string }) {
-  return (
-    <li>
-      <Link
-        href={href}
-        className="flex items-center justify-between gap-4 py-4 transition-colors hover:bg-surface-2 -mx-2 px-2 rounded-sm"
-      >
-        <div className="min-w-0">
-          <p className="font-medium text-ink">{label}</p>
-          <p className="mt-0.5 text-[10px] font-mono uppercase tracking-[0.15em] text-muted">{sub}</p>
-        </div>
-        <span className="text-muted-strong text-lg">→</span>
-      </Link>
-    </li>
+        {secondary && <p className="mt-0.5 text-xs text-muted-strong truncate">{secondary}</p>}
+      </div>
+    </Link>
   );
 }
 
@@ -247,11 +236,7 @@ function ScanGlyph() {
   );
 }
 
-function fmtWeight(w: number): string {
-  return Number.isInteger(w) ? String(w) : w.toFixed(1);
-}
-
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, timezone: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.round(diff / 60_000);
   if (m < 1) return 'just now';
@@ -260,15 +245,12 @@ function relativeTime(iso: string): string {
   if (h < 24) return `${h}h ago`;
   const d = Math.round(h / 24);
   if (d < 7) return `${d}d ago`;
-  return absoluteDate(iso);
+  return formatLocal(iso, timezone, 'MMM d');
 }
 
-function absoluteDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
-function greetingFor(): string {
-  const h = new Date().getHours();
+/** Server runs in UTC — greet by the gym's clock, not Vercel's. */
+function greetingFor(timezone: string): string {
+  const h = Number(formatLocal(new Date().toISOString(), timezone, 'H'));
   if (h < 12) return 'Good morning';
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
